@@ -46,3 +46,12 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# AI / research subproject
+ai/.venv/
+ai/.env
+ai/data/processed/*.csv
+ai/data/processed/*.json
+__pycache__/
+*.pyc
+ai/experiments/
