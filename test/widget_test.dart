@@ -1,30 +1,20 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:pulmo_ai/main.dart';
+import 'package:pulmo_ai/app/app.dart';
+import 'package:pulmo_ai/services/history_repository.dart';
+import 'package:pulmo_ai/services/image_source_service.dart';
+import 'package:pulmo_ai/services/mock_analysis_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('home screen shows the primary call to action', (tester) async {
+    await tester.pumpWidget(
+      PulmoAiApp(
+        analysisService: MockAnalysisService(),
+        historyRepository: HistoryRepository(seedDemoData: false),
+        imageSourceService: ImageSourceService(),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Analyze X-ray'), findsOneWidget);
+    expect(find.text('How it works'.toUpperCase()), findsOneWidget);
   });
 }
