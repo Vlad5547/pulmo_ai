@@ -881,7 +881,117 @@ overlap statistics behave correctly on synthetic input. Current state:
 **12/12 pass**.
 
 ---
-## 13. Known issues and notes
+
+## 13. ONNX export for the mobile app
+
+The trained checkpoint is exported once, verified against PyTorch, and only
+then handed to the Flutter app. Nothing here trains, re-evaluates or modifies
+`best.pt`, `predictions_test.csv`, the dataset or the split.
+
+```powershell
+cd D:\pulmo_ai\ai
+..\ai\.venv\Scripts\python.exe -m src.export.export_onnx
+..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --images 100
+```
+
+### Why ONNX
+
+The mobile runtime is ONNX Runtime (`flutter_onnxruntime` on the Flutter side),
+so the model ships as `.onnx`:
+
+- **one export step from `best.pt`** — `torch.onnx.export`, no intermediate
+  framework. The TFLite route would need PyTorch → ONNX → TF → TFLite with an
+  NCHW→NHWC rewrite, where a mistake changes numbers instead of failing;
+- **every PulmoNet-7M operator is a standard ONNX operator** — the exported
+  graph contains only `Conv`, `Relu`, `MaxPool`, `GlobalAveragePool`, `Gemm`,
+  plus shape ops. BatchNorm is folded into the convolutions by constant folding
+  and Dropout disappears in `eval()` mode, so 7 065 953 PyTorch parameters
+  become 7 063 105 elements in the graph;
+- **the NCHW layout is preserved**, identical to training;
+- **the same file serves iOS later**, only the execution provider changes.
+
+fp32, opset 17, fixed input shape `[1, 1, 224, 224]` (fixed rather than dynamic
+because mobile execution providers optimise better for a static shape). No
+quantisation: 28.26 MB is acceptable for an APK, and INT8 would have to be
+re-verified before it could be trusted.
+
+### What is exported
+
+**The network only — preprocessing stays outside the graph.** The model expects
+exactly the tensor the training Dataset produces: grayscale, resized to
+224×224 with antialiased bilinear interpolation, scaled to [0, 1], then
+normalised with mean 0.4932 and std 0.2458. The output is one raw logit;
+sigmoid and the 0.5 threshold are applied by the caller, as in training.
+
+| | |
+|---|---|
+| File | `ai/experiments/pulmonet7m-scratch/export/pulmonet7m.onnx` |
+| Size | 28.26 MB (29 632 KB) |
+| Opset / IR | 17 / 8 |
+| Input | `input`, `[1, 1, 224, 224]`, float32, NCHW |
+| Output | `logit`, `[1, 1]`, float32 |
+| Operators | Conv, Relu, MaxPool, GlobalAveragePool, Gemm, Flatten, Reshape, Squeeze, Constant |
+
+### How verification works
+
+`verify_onnx.py` makes **two** comparisons, because they measure different
+things:
+
+1. **Export fidelity — the acceptance criterion.** ONNX on CPU against the
+   PyTorch checkpoint **on the same device**, same input tensor.
+   Criterion: `max |p_onnx − p_torch_cpu| < 1e-4`.
+2. **End-to-end sanity.** ONNX against the probabilities already stored in
+   `predictions_test.csv`. Bound 1e-3, and *not* the acceptance criterion —
+   see below.
+
+It also checks the graph with `onnx.checker`, and that the session's input and
+output names, shapes, opset and CPU execution provider are what the Flutter
+side will expect.
+
+### Results (100 random test images, seed 42)
+
+| Comparison | max &#124;Δp&#124; | mean &#124;Δp&#124; | cases over bound |
+|---|---|---|---|
+| **ONNX (CPU) vs PyTorch (CPU)** | **1.788e-07** | 2.772e-08 | 0 of 100 |
+| ONNX (CPU) vs stored predictions (GPU run) | 1.231e-04 | 1.598e-05 | 0 of 100 |
+
+All 9 structural and numerical checks pass. Latency on the desktop CPU,
+batch 1: mean 11.4 ms, p50 11.3 ms, p95 12.0 ms (a phone will be slower).
+
+**Why the second row is not zero, and why it is not an export defect.** The
+stored predictions were computed on the RTX 5070 Ti, where PyTorch uses TF32
+arithmetic for convolutions by default (`torch.backends.cudnn.allow_tf32` is
+`True`). Measured on the same 50 images:
+
+| Comparison | max &#124;Δp&#124; |
+|---|---|
+| ONNX (CPU) vs PyTorch (CPU) | 1.788e-07 |
+| PyTorch (CPU) vs stored (GPU) | 1.231e-04 |
+| PyTorch (GPU, re-run) vs stored (GPU) | 1.382e-04 |
+
+The last row is the giveaway: re-running the *same* PyTorch model on the *same*
+GPU does not reproduce the stored values bit-for-bit either. The 1e-4 residual
+is GPU floating-point arithmetic, present with or without ONNX, and it is three
+orders of magnitude below the 0.5 decision threshold — no test prediction
+changes class because of it. Comparing ONNX against `predictions_test.csv` with
+a 1e-4 tolerance would therefore have measured GPU non-determinism rather than
+export correctness, which is why the criterion compares like with like.
+
+### Artefacts
+
+```
+ai/experiments/pulmonet7m-scratch/export/
+├── pulmonet7m.onnx        the model, fp32, opset 17
+├── export_graph.json      graph facts recorded at export time
+└── export_summary.json    input/output contract, verification statistics, latency
+```
+
+`export_summary.json` is the file the Flutter integration should read the
+contract from: input name and shape, normalisation constants, output meaning
+and the 0.5 threshold.
+
+---
+## 14. Known issues and notes
 
 * **Pixel data is JPEG-compressed** — transfer syntax `1.2.840.10008.1.2.4.50`
   (JPEG Baseline, Process 1) for all 30 000 files, so `pydicom` alone cannot
@@ -917,5 +1027,9 @@ overlap statistics behave correctly on synthetic input. Current state:
 * The CAM is a 7x7 map upsampled to 224x224 - it localises coarsely by
   construction, and the model never saw a bounding box during training. Treat
   it as a view of model behaviour, not as localisation (section 12).
-* Not done yet: export of the trained model to a mobile format and its
-  integration into the Flutter app in place of the mock service.
+* The stored test predictions are not bit-reproducible: they were computed on
+  the GPU with TF32 convolutions, so any CPU re-computation differs by up to
+  1.2e-4 (section 13). Irrelevant for the metrics, worth knowing before
+  comparing numbers across devices.
+* Not done yet: the Flutter integration itself - the exported ONNX model is
+  ready and verified, but the app still runs on the mock service.

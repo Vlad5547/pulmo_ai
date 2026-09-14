@@ -57,6 +57,10 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.inference.predict --dic
 # CAM heatmap for one or more DICOM files (read-only)
 cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.analysis.cam --dicom "<path.dcm>"
 
+# export the checkpoint to ONNX and verify it (read-only for the checkpoint)
+cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.export_onnx
+cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --images 100
+
 # analysis of a finished experiment (read-only: no model, no inference)
 & $py ai\src\analysis\plot_experiment.py
 
@@ -67,21 +71,23 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.analysis.cam --dicom "<
 flutter run
 ```
 
-## Keeping this file current
+## Keeping the documentation current
 
-**Always update this file at the end of any session that changed something.**
-Standing instruction from the user — do it without being asked, as part of the
-work, not as a separate request. What to refresh:
+**Always record every change in all three places, in the same turn as the work
+itself.** Standing instruction from the user — never wait to be asked:
 
-- the **State** section: what is done, what is running, what is still pending,
-  and the current numbers (split sizes, `pos_weight`, hyperparameters, training
-  results once they exist);
-- the **Hard rules** and **Commands** sections whenever a decision, constraint
-  or script changes;
-- `ai/README.md` in the same pass when the pipeline or the model changes.
+1. **This file** — the **State** section (what is done, pending, current
+   numbers), plus **Hard rules** and **Commands** whenever a decision,
+   constraint or script changes.
+2. **`ai/README.md`** — whenever the pipeline, the model, the results or the
+   tooling change: add or update the relevant section.
+3. **The thesis report** — `docs/make_report.py`, then regenerate
+   `docs/PulmoAI_materialy_magisterska.docx`. New results, new figures, new
+   components and newly discovered problems all belong in it (Ukrainian).
+   Run `plot_experiment.py` first if figures changed.
 
-Update in place — keep it short and factual, do not let it grow into a
-changelog.
+Update in place — keep it short and factual, do not let any of the three grow
+into a changelog.
 
 ## State (as of the last session)
 
@@ -112,6 +118,15 @@ changelog.
   (stopped at 18), early stopping patience 5, seed 42, num_workers 8.
 - Flutter UI (Home / Analyze / Result / History) is complete and runs on a mock
   analysis service; swapping in the real model is one line in `lib/main.dart`.
+- **ONNX export done and verified**: `ai/experiments/pulmonet7m-scratch/export/`
+  (`pulmonet7m.onnx` 28.26 MB, fp32, opset 17, input `input` [1,1,224,224],
+  output `logit` [1,1]; preprocessing stays outside the graph). Fidelity vs
+  PyTorch on CPU: max 1.8e-07 over 100 images; vs the stored GPU predictions
+  1.2e-04, which is TF32 arithmetic, not an export defect. Latency on desktop
+  CPU 11.4 ms. Contract for Flutter is in `export_summary.json`.
+- Mobile runtime decision (approved): **ONNX Runtime via `flutter_onnxruntime`**,
+  fp32 opset 17, **no INT8 for now**. Flutter still runs on the mock service -
+  integration is the next step, not started.
 - Inference + CAM are implemented on top of the existing checkpoint:
   `ai/src/inference/predict.py` (probability, class, threshold 0.5) and
   `ai/src/analysis/cam.py` (original / heatmap / overlay / result.json per
