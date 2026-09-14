@@ -7,9 +7,9 @@ consume.
 
 Current state: **data pipeline + model/training scaffolding**. Dataset
 analysis, annotation↔DICOM mapping, patient-grouped split, PyTorch
-`Dataset`/`DataLoader`, the PulmoNet-7M custom CNN (from scratch) and the
-training/evaluation loop are in place and smoke-tested. **No training run has
-been started** — it needs explicit confirmation.
+`Dataset`/`DataLoader`, the PulmoNet-7M custom CNN (from scratch), the
+training/evaluation loop — and the **first full training run, evaluated once on
+the test split** (section 10).
 
 ---
 
@@ -612,7 +612,276 @@ resize takes ~35 ms on one core, i.e. ~12 minutes per epoch at
 30-epoch run lands near an hour.
 
 ---
-## 10. Known issues and notes
+
+## 10. Results of the first training run
+
+Experiment `pulmonet7m-scratch`, RTX 5070 Ti, ~57 min wall clock (a ~22 min
+stall inside epoch 6 was external — disk/AV contention, not the pipeline).
+
+### Training
+
+| Epoch | train loss | val loss | train ROC-AUC | val ROC-AUC | val AUPRC |
+|---|---|---|---|---|---|
+| 1 | 0.8507 | 0.7856 | 0.7858 | 0.8272 | 0.5931 |
+| 7 | 0.7125 | 0.7083 | 0.8579 | 0.8618 | 0.6593 |
+| **13 (best)** | 0.6663 | 0.6878 | 0.8760 | **0.8700** | 0.6821 |
+| 18 (stop) | 0.6015 | 0.7361 | 0.8995 | 0.8674 | 0.6861 |
+
+Early stopping fired after epoch 18 (patience 5); `ReduceLROnPlateau` halved
+the LR to 1.5e-4 at epoch 16. The train/val ROC-AUC gap stayed within ±0.01
+through epoch 13 and reached 0.032 by epoch 18 — overfitting appeared late and
+was caught, which is what the regularisation was there for.
+
+### Threshold selection (validation only)
+
+Swept on the validation split with `best.pt`: F1 peaks at 0.6362 at threshold
+0.65, Youden's J at 0.5682 at threshold 0.50. The default 0.50 was kept — with
+`pos_weight = 3.1775` the model is deliberately recall-leaning, which suits a
+screening-style task.
+
+### Test (evaluated once, threshold 0.50)
+
+| Metric | Value |
+|---|---|
+| ROC-AUC | **0.8739** |
+| AUPRC | 0.6794 |
+| Accuracy | 0.7779 |
+| Precision | 0.5228 |
+| Recall (sensitivity) | 0.8293 |
+| Specificity | 0.7617 |
+| F1 | 0.6413 |
+| NPV | 0.9341 |
+
+Confusion matrix (n = 4 452): TP 884, FP 807, FN 182, TN 2 579.
+
+Test ROC-AUC (0.8739) matches validation (0.8700), so the patient-level split
+held and the model selection on validation did not leak. **The test split is
+now spent**: no further threshold or hyperparameter choice may be evaluated on
+it.
+
+At threshold 0.65 (also selected on validation) the test numbers are accuracy
+0.8120, precision 0.5907, recall 0.6998, specificity 0.8473, F1 0.6406 —
+reported for completeness; 0.50 was the pre-selected operating point.
+
+### Error structure
+
+| True class | n | Errors | Mean predicted probability |
+|---|---|---|---|
+| Lung Opacity | 1 066 | 182 missed (17.1 %) | 0.726 |
+| No Lung Opacity / Not Normal | 1 918 | 775 false positives (40.4 %) | 0.415 |
+| Normal | 1 468 | 32 false positives (2.2 %) | 0.085 |
+
+Almost every false positive comes from the `No Lung Opacity / Not Normal`
+class and hardly any from `Normal`. The network separates "normal" from
+"abnormal" reliably and loses precision on *which* abnormality it is seeing —
+consistent with the fact that this negative class contains other radiographic
+findings that share appearance with opacity. This is the main direction for
+improvement (higher input resolution, or the localisation stage), and it is
+also why precision is the weakest metric while NPV stays at 0.93.
+
+No claim is made here about diagnostic performance: these are metrics on one
+held-out split of one public dataset.
+
+---
+
+## 11. Experiment analysis and plots
+
+Everything below is derived from the artefacts the single training run and the
+single test evaluation already produced. Regenerate with:
+
+```powershell
+ai\.venv\Scripts\python.exe ai\src\analysis\plot_experiment.py
+```
+
+`plot_experiment.py` is read-only with respect to the experiment: it reads
+`history.csv`, `predictions_test.csv`, `metrics_test.json`, `results.json` and
+`config.json`, and writes only into `plots/`. It loads no checkpoint, runs no
+inference, and re-tunes nothing.
+
+### Files — `ai/experiments/pulmonet7m-scratch/plots/`
+
+| File | Split | What it shows |
+|---|---|---|
+| `roc_curve_test.png` | test | ROC curve, ROC-AUC 0.8739, operating point at threshold 0.5 marked |
+| `pr_curve_test.png` | test | Precision–recall curve, AUPRC 0.6794, prevalence baseline 0.239 |
+| `confusion_matrix_test.png` | test | TP 884 / FP 807 / FN 182 / TN 2 579, cells shaded row-normalised |
+| `roc_curve_test.csv` | test | the ROC curve as data (threshold, FPR, TPR) |
+| `pr_curve_test.csv` | test | the PR curve as data (threshold, recall, precision) |
+| `training_loss.png` | train + val | loss per epoch, best epoch marked |
+| `training_roc_auc.png` | train + val | ROC-AUC per epoch, best epoch marked |
+| `training_f1.png` | train + val | F1 per epoch at threshold 0.5, best epoch marked |
+| `training_learning_rate.png` | — | LR schedule; the single ReduceLROnPlateau step to 1.5e-4 at epoch 16 |
+| `validation_roc_auc.png` | val | the model-selection curve; epoch 13 highlighted, the early-stopping window shaded |
+| `training_analysis.txt` | train + val | per-epoch table, gaps, LR schedule, overfitting assessment, conclusion |
+| `error_analysis.txt` | test | confusion matrix, all rates, errors broken down by the original adjudicated class |
+| `results_summary.json` | both | machine-readable summary: model, training config, validation metrics at the best epoch, test metrics, confusion matrix |
+
+### Which numbers belong to which split
+
+- **Validation** — everything per-epoch (`training_*.png`, `validation_roc_auc.png`,
+  `training_analysis.txt`) and the choice of the best epoch. Model selection and
+  threshold selection happened here and only here.
+- **Test** — the ROC and PR curves, the confusion matrix and `error_analysis.txt`.
+  These come from one evaluation of `best.pt`, run once after the epoch and the
+  threshold were already fixed.
+- **Best epoch: 13** (validation ROC-AUC 0.8700). `best.pt` is that checkpoint;
+  it is the only checkpoint the test split ever saw.
+
+### Threshold provenance
+
+The operating point in every test figure is **threshold 0.5**, chosen on the
+validation split (best Youden's J) before the test split was read. The 0.65
+alternative mentioned in section 10 was also derived on validation (best
+validation F1). **The test split was never used to select a threshold, an
+epoch or a hyperparameter** — it was read exactly once, for the final
+evaluation, and is now spent.
+
+As a consistency check, `plot_experiment.py` recomputes ROC-AUC and AUPRC from
+`predictions_test.csv`: 0.8739 and 0.6794, matching the stored metrics to four
+decimals.
+
+### Thesis report
+
+`docs/make_report.py` builds the Ukrainian project report
+(`docs/PulmoAI_materialy_magisterska.docx`) from the same numbers and embeds
+the figures from `plots/`. Re-run it after any new experiment:
+
+```powershell
+ai\.venv\Scripts\python.exe docs\make_report.py
+```
+
+---
+
+
+## 12. Inference and CAM visualisation
+
+Both tools use the **existing** `best.pt` (epoch 13) and are read-only: no
+training, no re-evaluation, no checkpoint write, no change to the dataset, the
+split or the stored predictions.
+
+### Inference — `ai/src/inference/predict.py`
+
+```powershell
+cd D:\pulmo_ai\ai
+..\ai\.venv\Scripts\python.exe -m src.inference.predict --dicom "<path.dcm>"
+..\ai\.venv\Scripts\python.exe -m src.inference.predict --dicom "<path.dcm>" --json
+```
+
+(or `ai\.venv\Scripts\python.exe ai\src\inference\predict.py --dicom ...` from
+the repository root.)
+
+```
+Image       : ...\1.2.276.0.7230010.3.1.4.8323329.10044.1517874346.509903.dcm
+Probability : 0.9802
+Prediction  : Pneumonia / Lung Opacity
+Threshold   : 0.50
+```
+
+The preprocessing is **not a second implementation**: `preprocess_dicom()`
+calls the same `dicom_to_float_tensor → resize_image → normalize_intensity`
+from `src/data/preprocessing.py` that the Dataset calls, with the same
+`PreprocessConfig` and augmentation off. `test_inference.py` asserts
+`torch.equal` between the inference tensor and the Dataset tensor for the same
+image, so the two paths cannot drift apart, and it also re-checks three stored
+test predictions — they reproduce to better than 1e-4.
+
+The threshold defaults to **0.5**, the value fixed on validation before the
+test evaluation; `--threshold` exists but changing it does not change any
+reported result.
+
+Python API:
+
+```python
+from src.inference import load_model, predict_dicom
+model, checkpoint, device = load_model()          # best.pt, eval mode, CUDA if present
+result = predict_dicom(path, model=model, device=device)
+result.probability, result.predicted_class, result.threshold
+```
+
+### CAM / heatmap — `ai/src/analysis/cam.py`
+
+```powershell
+cd D:\pulmo_ai\ai
+..\ai\.venv\Scripts\python.exe -m src.analysis.cam --dicom "<path.dcm>"
+..\ai\.venv\Scripts\python.exe -m src.analysis.cam --dicom "<a.dcm>" "<b.dcm>" --no-boxes
+```
+
+Method — plain CAM (Zhou et al., 2016), which this architecture supports
+natively because the head is *global average pooling → Linear(512, 1)*:
+
+```
+features  = model.features(x)          # [1, 512, 7, 7]
+weights   = model.classifier.weight    # [1, 512]
+cam[y, x] = Σ_k weights[k] · features[k, y, x]      → ReLU → /max → resize 224
+```
+
+No gradients, no architecture change, no extra layer.
+
+Output — `ai/experiments/pulmonet7m-scratch/cam/<SOPInstanceUID>/`:
+
+| File | Content |
+|---|---|
+| `original.png` | the 224×224 grayscale image the model actually saw |
+| `heatmap.png` | the normalised activation map with a colour bar |
+| `overlay.png` | heatmap over the radiograph, with the predicted probability |
+| `ground_truth_boxes.png` | adjudicated boxes (positive cases only) |
+| `overlay_with_boxes.png` | CAM and the adjudicated boxes together |
+| `result.json` | input path, probability, threshold, predicted class, heatmap size, checkpoint, method, caveat, and the box-agreement statistics |
+
+### Limits of the CAM
+
+**The map shows image regions associated with the model's decision. It is not
+evidence of disease localisation and not a diagnostic output.** Concretely:
+
+- it is computed on a 7×7 grid and upsampled to 224×224, so its effective
+  resolution is about 32 px — it cannot delineate a lesion boundary;
+- the model was trained on **image-level labels only**; it was never given a
+  bounding box, so nothing forced its evidence to coincide with the annotated
+  region;
+- CAM shows correlation with the decision, not causation, and a network can
+  reach the right answer from context (device wires, patient position, image
+  framing) rather than from the finding itself;
+- the map is normalised by its own maximum, so a bright region appears even
+  when the predicted probability is low — brightness is relative within one
+  image and is not comparable between images.
+
+### Exploratory CAM ↔ bounding-box agreement
+
+For positive cases the ground-truth boxes from `bounding_boxes.csv` are used
+**only to describe the visualisation**, never to train, tune or select
+anything. Two measures, both fixed in advance:
+
+- **pointing hit** — whether the single strongest CAM pixel falls inside an
+  annotated box (threshold-free);
+- **IoU@0.5·max** — intersection over union between the union of the boxes and
+  the CAM binarised at 0.5 of its own maximum. This is the standard CAM
+  localisation rule from the original paper; it was **not** tuned on any split,
+  and in particular not on the test split.
+
+These numbers describe how the visualisation relates to the annotation on a
+handful of images. They are not a localisation benchmark and not a measure of
+diagnostic performance.
+
+### Tests
+
+```powershell
+cd D:\pulmo_ai\ai
+..\ai\.venv\Scripts\python.exe -m src.inference.test_inference   # 6 checks
+..\ai\.venv\Scripts\python.exe -m src.analysis.test_cam          # 6 checks
+```
+
+Inference: checkpoint loads in eval mode with 7 065 953 parameters at epoch 13;
+preprocessing is byte-identical to the Dataset; tensor shape and dtype; the
+probability lies in [0, 1] and agrees with the threshold rule; stored test
+predictions reproduce; two calls give the same number. CAM: shape 224×224,
+finite, normalised to [0, 1]; the CAM head recomputation matches
+`model.forward`; the display image de-normalises into [0, 1]; all PNGs and
+`result.json` are written and non-empty; a negative case has no boxes; the
+overlap statistics behave correctly on synthetic input. Current state:
+**12/12 pass**.
+
+---
+## 13. Known issues and notes
 
 * **Pixel data is JPEG-compressed** — transfer syntax `1.2.840.10008.1.2.4.50`
   (JPEG Baseline, Process 1) for all 30 000 files, so `pydicom` alone cannot
@@ -642,5 +911,11 @@ resize takes ~35 ms on one core, i.e. ~12 minutes per epoch at
   1-channel pipeline (0.4932 / 0.2458 on 800 training images). If
   `image_size` changes, they stay valid — they are computed after the resize
   and the resize is area-preserving in the mean.
-* Not started yet: the actual training run, evaluation on the test split, and
-  the mobile export for the Flutter app.
+* The test split has been used (once, section 10). Any further tuning must be
+  judged on validation only; a new test-set number would need a new held-out
+  set or an explicit caveat in the thesis.
+* The CAM is a 7x7 map upsampled to 224x224 - it localises coarsely by
+  construction, and the model never saw a bounding box during training. Treat
+  it as a view of model behaviour, not as localisation (section 12).
+* Not done yet: export of the trained model to a mobile format and its
+  integration into the Flutter app in place of the mock service.

@@ -51,6 +51,18 @@ $py = "D:\pulmo_ai\ai\.venv\Scripts\python.exe"
 & $py ai\src\training\train.py --epochs 30
 & $py ai\src\training\evaluate.py --split test
 
+# inference on one DICOM with the trained checkpoint (read-only)
+cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.inference.predict --dicom "<path.dcm>"
+
+# CAM heatmap for one or more DICOM files (read-only)
+cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.analysis.cam --dicom "<path.dcm>"
+
+# analysis of a finished experiment (read-only: no model, no inference)
+& $py ai\src\analysis\plot_experiment.py
+
+# regenerate the Ukrainian thesis report (embeds the figures above)
+& $py docs\make_report.py
+
 # Flutter app
 flutter run
 ```
@@ -73,16 +85,50 @@ changelog.
 
 ## State (as of the last session)
 
-- Data pipeline, split, Dataset/DataLoader, model, training/eval loop: done and
-  smoke-tested. **No training run has been performed yet**; `ai/experiments/`
-  is empty.
+- **First full training run is done** (2026-09-14, ~57 min on the RTX 5070 Ti).
+  Experiment `pulmonet7m-scratch`, artefacts in
+  `ai/experiments/pulmonet7m-scratch/` (`best.pt`, `last.pt`, `history.csv`,
+  `results.json`, `config.json`).
+- Result: **best validation ROC-AUC 0.8700 at epoch 13**, AUPRC 0.6821.
+  Early stopping fired after epoch 18; `ReduceLROnPlateau` dropped the LR to
+  1.5e-4 at epoch 16. Train/val ROC-AUC gap stayed under 0.01 until epoch 13 and
+  reached 0.032 by epoch 18 — mild, late overfitting, caught by early stopping.
+- Threshold study on validation (`best.pt`): F1 peaks at **0.6362 @ threshold
+  0.65**, Youden's J peaks at 0.5682 @ 0.50. At the default 0.5 the model is
+  recall-heavy (recall 0.81, precision 0.52) because of `pos_weight`.
+- **Test evaluated once, at threshold 0.5** (`metrics_test.json`,
+  `predictions_test.csv`): ROC-AUC **0.8739**, AUPRC 0.6794, accuracy 0.7779,
+  precision 0.5228, recall 0.8293, F1 0.6413, specificity 0.7617, NPV 0.9341.
+  Confusion matrix: TP 884, FP 807, FN 182, TN 2579. Test ≈ validation
+  (0.8739 vs 0.8700), so the model generalises and the split held.
+  **The test split is now spent** — no further tuning may be measured on it.
+- Error structure on test: 17.1 % of Lung Opacity missed; false positives come
+  almost entirely from `No Lung Opacity / Not Normal` (40.4 % of them) and
+  barely from `Normal` (2.2 %) — the model separates "abnormal" well and
+  struggles on "which abnormality".
 - Split: train 20 779 / val 4 453 / test 4 452, 23.94 % positive in each,
   0 shared patients. `pos_weight = 3.1775`, computed on train only.
-- Hyperparameters for the first run: AdamW, lr 3e-4, weight decay 1e-4,
-  batch 32, 30 epochs, early stopping patience 5, seed 42, num_workers 8.
+- Hyperparameters used: AdamW, lr 3e-4, weight decay 1e-4, batch 32, 30 epochs
+  (stopped at 18), early stopping patience 5, seed 42, num_workers 8.
 - Flutter UI (Home / Analyze / Result / History) is complete and runs on a mock
   analysis service; swapping in the real model is one line in `lib/main.dart`.
-- Thesis report (Ukrainian): `docs/PulmoAI_materialy_magisterska.docx`.
+- Inference + CAM are implemented on top of the existing checkpoint:
+  `ai/src/inference/predict.py` (probability, class, threshold 0.5) and
+  `ai/src/analysis/cam.py` (original / heatmap / overlay / result.json per
+  image, plus ground-truth box overlays for positives, into
+  `ai/experiments/pulmonet7m-scratch/cam/<SOPInstanceUID>/`). Inference
+  preprocessing is asserted byte-identical to the Dataset, and stored test
+  predictions reproduce to 1e-4. Tests: `src.inference.test_inference` and
+  `src.analysis.test_cam`, 12/12.
+- Figures and written analysis for the run:
+  `ai/experiments/pulmonet7m-scratch/plots/` — ROC, PR, confusion matrix,
+  training curves, `training_analysis.txt`, `error_analysis.txt`,
+  `results_summary.json`. Regenerate with
+  `ai/src/analysis/plot_experiment.py` (read-only, no inference).
+- Thesis report (Ukrainian): `docs/PulmoAI_materialy_magisterska.docx`
+  (13 sections, 18 tables, 8 embedded figures) — includes chapter 8
+  "Результати навчання та оцінювання" with the full run analysis. Regenerate
+  with `docs/make_report.py` after any new result.
 
 ## Conventions
 

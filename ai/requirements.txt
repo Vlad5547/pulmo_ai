@@ -5,3 +5,7 @@ torch>=2.2
 # JPEG Baseline (1.2.840.10008.1.2.4.50) decoder for the RSNA DICOM files
 pylibjpeg>=2.0
 pylibjpeg-libjpeg>=2.1
+# figures for the experiment analysis (ai/src/analysis/plot_experiment.py)
+matplotlib>=3.8
+# thesis report generator (docs/make_report.py)
+python-docx>=1.1
