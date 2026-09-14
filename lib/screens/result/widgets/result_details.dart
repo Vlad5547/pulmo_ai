@@ -22,6 +22,10 @@ class ResultDetails extends StatelessWidget {
         'Regions of interest',
         result.boxes.isEmpty ? 'None' : '${result.boxes.length}',
       ),
+      (
+        'Model heatmap',
+        result.hasHeatmap ? 'Available' : 'Not available',
+      ),
     ];
 
     return Card(

@@ -13,12 +13,15 @@ import '../../widgets/xray_viewer.dart';
 import 'widgets/result_details.dart';
 import 'widgets/verdict_card.dart';
 
-/// How the model output is drawn on top of the scan. The heatmap mode is a
-/// placeholder today; Grad-CAM output will render through the same widget.
+/// How the model output is drawn on top of the scan.
+///
+/// [OverlayMode.heatmap] renders the class activation map that came out of the
+/// same forward pass as the probability. It marks the regions the model's
+/// decision responded to - it is not a localisation of disease.
 enum OverlayMode {
-  off('Original', Icons.visibility_off_outlined),
-  boxes('Bounding box', Icons.crop_free),
-  heatmap('Heatmap', Icons.blur_on);
+  off('Original', Icons.image_outlined),
+  heatmap('Model heatmap', Icons.blur_on),
+  boxes('Bounding box', Icons.crop_free);
 
   const OverlayMode(this.label, this.icon);
 
@@ -36,7 +39,7 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> {
-  OverlayMode _mode = OverlayMode.heatmap;
+  OverlayMode _mode = OverlayMode.off;
 
   AnalysisRecord get _record => widget.record;
 
@@ -47,6 +50,12 @@ class _ResultScreenState extends State<ResultScreen> {
     final accent = result.isPositive ? clinical.finding : clinical.clear;
     final path = _record.imagePath;
     final hasBoxes = result.boxes.isNotEmpty;
+    final heatmap = result.heatmapPng;
+    final modes = <OverlayMode>[
+      OverlayMode.off,
+      if (heatmap != null) OverlayMode.heatmap,
+      if (hasBoxes) OverlayMode.boxes,
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -85,29 +94,41 @@ class _ResultScreenState extends State<ResultScreen> {
                   icon: Icons.query_stats,
                   color: accent,
                 ),
-                overlay: _mode == OverlayMode.off
-                    ? null
-                    : DetectionOverlay(
-                        boxes: result.boxes,
-                        color: accent,
-                        showHeatmap: _mode == OverlayMode.heatmap,
-                        showBoxes: true,
-                      ),
+                overlay: switch (_mode) {
+                  OverlayMode.off => null,
+                  OverlayMode.heatmap => heatmap == null
+                      ? null
+                      : Image.memory(
+                          heatmap,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                          gaplessPlayback: true,
+                        ),
+                  OverlayMode.boxes => DetectionOverlay(
+                      boxes: result.boxes,
+                      color: accent,
+                      showHeatmap: false,
+                      showBoxes: true,
+                    ),
+                },
               ),
               const SizedBox(height: 14),
-              _OverlayModeSelector(
-                mode: _mode,
-                enabled: hasBoxes,
-                onChanged: (mode) => setState(() => _mode = mode),
-              ),
-              const SizedBox(height: 8),
+              if (modes.length > 1)
+                _OverlayModeSelector(
+                  modes: modes,
+                  mode: _mode,
+                  onChanged: (mode) => setState(() => _mode = mode),
+                ),
+              if (modes.length > 1) const SizedBox(height: 8),
               Text(
-                hasBoxes
-                    ? 'Visualization layer — bounding boxes come from the '
-                          'detector; the heatmap is a placeholder for the '
-                          'Grad-CAM output of the trained model.'
-                    : 'No region of interest was produced for this study, so '
-                          'there is nothing to overlay.',
+                heatmap != null
+                    ? 'The model heatmap marks the regions associated with the '
+                          'model\'s decision. It is computed from the last '
+                          'convolutional layer on a 7x7 grid and enlarged, so '
+                          'it indicates an area, not a boundary — and it is not '
+                          'a localisation of disease.'
+                    : 'No visualization layer is available for this study; the '
+                          'probability above stands on its own.',
                 style: context.texts.bodySmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
                   height: 1.4,
@@ -160,20 +181,20 @@ class _ResultScreenState extends State<ResultScreen> {
 
 class _OverlayModeSelector extends StatelessWidget {
   const _OverlayModeSelector({
+    required this.modes,
     required this.mode,
-    required this.enabled,
     required this.onChanged,
   });
 
+  final List<OverlayMode> modes;
   final OverlayMode mode;
-  final bool enabled;
   final ValueChanged<OverlayMode> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return SegmentedButton<OverlayMode>(
       segments: [
-        for (final option in OverlayMode.values)
+        for (final option in modes)
           ButtonSegment(
             value: option,
             icon: Icon(option.icon, size: 17),
@@ -182,9 +203,7 @@ class _OverlayModeSelector extends StatelessWidget {
       ],
       selected: {mode},
       showSelectedIcon: false,
-      onSelectionChanged: enabled
-          ? (selection) => onChanged(selection.first)
-          : null,
+      onSelectionChanged: (selection) => onChanged(selection.first),
       style: const ButtonStyle(visualDensity: VisualDensity.compact),
     );
   }

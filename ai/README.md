@@ -1016,11 +1016,12 @@ AnalysisResult → Result screen → HistoryRepository
 
 | Piece | Location |
 |---|---|
-| Model | `assets/models/pulmonet7m.onnx` (28.26 MB, fp32, opset 17) |
-| Model card | `assets/models/model_card.json` — input contract, threshold, test metrics |
+| Model | `assets/models/pulmonet7m_cam.onnx` (28.26 MB, fp32, opset 17; two outputs) |
+| Model card | `assets/models/model_card.json` — input contract, threshold, test metrics, CAM weights |
 | Card parser | `lib/models/model_info.dart` |
 | Preprocessing | `lib/services/image_preprocessor.dart` |
 | Inference | `lib/services/onnx_analysis_service.dart` |
+| Activation map | `lib/services/cam_service.dart` |
 | Injection | `lib/main.dart` (`OnnxAnalysisService()`) |
 
 `MockAnalysisService` stays in the project and implements the same
@@ -1090,6 +1091,80 @@ If the model cannot be loaded, the Analyze screen returns to the idle state with
 an explanatory message, the picked image stays selected and the button works
 again — no hung loading indicator.
 
+
+### Model heatmap (CAM) on the device
+
+The app shows a second result next to the probability: the class activation map
+of the same forward pass.
+
+**Why a second ONNX file.** `pulmonet7m.onnx` declares one output (`logit`), and
+ONNX Runtime can only return declared graph outputs — asking it for an internal
+tensor fails with `INVALID_ARGUMENT: Invalid output name`. The classification
+model was therefore left untouched and a second graph was exported from the
+**same `best.pt`**, `pulmonet7m_cam.onnx`, which declares two outputs:
+
+| Output | Shape | Meaning |
+|---|---|---|
+| `logit` | `[1, 1]` | identical to the classification model — verified bit-for-bit |
+| `features` | `[1, 512, 7, 7]` | the last convolutional feature map, the one global average pooling collapses |
+
+No new weights, no architecture change: the wrapper only exposes a tensor that
+already existed inside the network. The app ships this file **instead of**
+the classification-only one (they are the same 28 MB model; shipping both would
+add 26 MB to the APK for nothing), so the classification path is unchanged and
+the map is free.
+
+**The computation.** PulmoNet-7M ends in *global average pooling → Linear(512, 1)*,
+so each feature channel contributes to the logit through exactly one weight:
+
+```
+cam[y, x] = Σ_k weight[k] · features[k, y, x]     (k = 0 … 511)
+→ ReLU (keep only evidence for the positive class)
+→ divide by the maximum   → values in [0, 1]
+→ bilinear upsample to the radiograph's aspect ratio
+→ colour ramp, alpha proportional to activation
+```
+
+The 512 weights are the classifier's own and ship in `model_card.json`, so the
+arithmetic in `lib/services/cam_service.dart` is the same as in
+`ai/src/analysis/cam.py` — not a re-derivation.
+
+**Isolation from classification.** The map is built after the probability, in a
+`try`/`catch`. If it fails, `AnalysisResult.heatmapPng` is null, the Result
+screen simply offers no heatmap toggle, and the probability and verdict are
+reported exactly as before. Classification never depends on the CAM.
+
+**UI.** The Result screen shows a segmented control (`Original` / `Model heatmap`),
+default `Original`. The overlay is drawn with `BoxFit.contain` over the same
+radiograph; the PNG keeps the source aspect ratio, so nothing is stretched. The
+caption states that the map marks regions associated with the model's decision
+and is not a localisation of disease.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| `logit` of the CAM model vs the classification model (50 test images) | **0.000e+00** — bit-identical |
+| `features` vs `PulmoNet.features()` in PyTorch | 3.338e-06 |
+| CAM from the ONNX outputs vs `ai/src/analysis/cam.py` | 1.192e-06 |
+| CAM computed by the **Dart** service vs the Python implementation | **7.749e-07** |
+| Heatmaps produced on the device | 6 of 6 |
+| Probabilities after adding the CAM | unchanged (max diff vs desktop still 7.889e-07) |
+
+Figures for the two positive fixtures, with the adjudicated boxes drawn for
+debugging only, are in
+`ai/experiments/pulmonet7m-scratch/cam/flutter/`.
+
+**Limits.** The map is 7×7 natively — roughly 32 px of the 224 px input — so it
+indicates a region and can never outline a lesion. The model was trained on
+image-level labels only and never saw a bounding box, so nothing forced its
+evidence to coincide with the annotated region. It is normalised by its own
+maximum, so a bright spot appears even when the probability is low; brightness
+is relative within one image and not comparable across images. **CAM is not
+bounding-box detection**: a detector is trained on box supervision and outputs
+coordinates with scores, while this map is a by-product of a classifier and has
+no notion of an object.
+
 ### Running it
 
 ```powershell
@@ -1129,8 +1204,9 @@ provider:
 
 | | |
 |---|---|
-| Warm-up (session creation) | **294 ms**, second call **0 ms** (session reused) |
+| Warm-up (session creation) | **294 ms** without CAM, **268 ms** with the CAM model; second call **0 ms** (session reused) |
 | Per image, decode + preprocess + inference | median **214 ms** (min 192, max 407; the first image includes isolate start-up) |
+| Per image with the CAM built as well | median **468 ms**, of which the map is **97 ms** (min 66, max 184) |
 | max &#124;Δp&#124; vs desktop | **7.889e-07** |
 | mean &#124;Δp&#124; | 2.593e-07 |
 
@@ -1151,8 +1227,9 @@ No verdict differs from the desktop run.
   JPEG-Baseline compressed inside DICOM, and the pure-Dart parsers on pub.dev
   handle uncompressed/RLE only. A photograph of a film or a monitor also
   introduces glare and geometry the model never saw in training.
-- **CAM, bounding boxes, DICOM picking, INT8 quantisation and any backend are
-  deliberately out of scope** for this version.
+- **Bounding boxes, DICOM picking, INT8 quantisation and any backend are
+  deliberately out of scope** for this version. The CAM is in (see above); a
+  detector is not.
 - Inference runs on the CPU execution provider. NNAPI/XNNPACK are available in
   the plugin and can be enabled later, but they change the arithmetic slightly
   and would need their own parity check.

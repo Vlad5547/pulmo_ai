@@ -48,6 +48,9 @@ class ModelInfo {
     required this.assetPath,
     required this.inputName,
     required this.outputName,
+    required this.featuresOutputName,
+    required this.camWeights,
+    required this.camGridSize,
     required this.inputShape,
     required this.imageSize,
     required this.mean,
@@ -67,6 +70,10 @@ class ModelInfo {
     final preprocessing = input['preprocessing'] as Map<String, dynamic>;
     final output = json['output'] as Map<String, dynamic>;
     final format = json['format'] as Map<String, dynamic>;
+    final logit = (output['logit'] as Map).cast<String, dynamic>();
+    final features = (output['features'] as Map).cast<String, dynamic>();
+    final cam = (json['cam'] as Map).cast<String, dynamic>();
+    final grid = (cam['native_grid'] as List).cast<num>();
     final shape = (input['shape'] as List).cast<num>()
         .map((value) => value.toInt())
         .toList(growable: false);
@@ -76,7 +83,12 @@ class ModelInfo {
       version: json['model_version'] as String,
       assetPath: assetPath,
       inputName: input['name'] as String,
-      outputName: output['name'] as String,
+      outputName: logit['name'] as String,
+      featuresOutputName: features['name'] as String,
+      camWeights: Float32List.fromList(
+        (cam['weight'] as List).cast<num>().map((v) => v.toDouble()).toList(),
+      ),
+      camGridSize: grid.first.toInt(),
       inputShape: shape,
       imageSize: shape.last,
       mean: (preprocessing['normalisation_mean'] as num).toDouble(),
@@ -91,7 +103,7 @@ class ModelInfo {
     );
   }
 
-  static const defaultAssetPath = 'assets/models/pulmonet7m.onnx';
+  static const defaultAssetPath = 'assets/models/pulmonet7m_cam.onnx';
   static const defaultCardPath = 'assets/models/model_card.json';
 
   /// Loads the model card that ships with the app.
@@ -113,6 +125,16 @@ class ModelInfo {
   /// ONNX graph input/output names, taken from the card rather than guessed.
   final String inputName;
   final String outputName;
+
+  /// Second graph output: the last convolutional feature map, used for the
+  /// class activation map.
+  final String featuresOutputName;
+
+  /// Classifier weights, one per feature channel - the CAM coefficients.
+  final Float32List camWeights;
+
+  /// Native CAM resolution (7 for PulmoNet-7M).
+  final int camGridSize;
 
   /// `[1, 1, 224, 224]`, NCHW.
   final List<int> inputShape;

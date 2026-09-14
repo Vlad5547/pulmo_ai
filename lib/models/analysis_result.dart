@@ -1,3 +1,4 @@
+
 import 'package:flutter/foundation.dart';
 
 /// High level outcome of a single chest X-ray analysis.
@@ -49,6 +50,7 @@ class AnalysisResult {
     this.modelName = 'PulmoAI-Mock',
     this.modelVersion = '0.1.0',
     this.notes,
+    this.heatmapPng,
   });
 
   final PneumoniaVerdict verdict;
@@ -64,6 +66,13 @@ class AnalysisResult {
   final String modelName;
   final String modelVersion;
   final String? notes;
+
+  /// Class activation map rendered as a translucent PNG, ready to be laid over
+  /// the radiograph. Null when the map could not be produced - the
+  /// classification result stands on its own.
+  final Uint8List? heatmapPng;
+
+  bool get hasHeatmap => heatmapPng != null;
 
   int get confidencePercent => (confidence * 100).round();
 

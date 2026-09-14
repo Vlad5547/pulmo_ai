@@ -57,6 +57,10 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.inference.predict --dic
 # CAM heatmap for one or more DICOM files (read-only)
 cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.analysis.cam --dicom "<path.dcm>"
 
+# export the CAM-capable graph and verify it against the classification model
+cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.export_cam_onnx
+cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_cam_onnx --images 50
+
 # export the checkpoint to ONNX and verify it (read-only for the checkpoint)
 cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.export_onnx
 cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --images 100
@@ -69,7 +73,7 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --im
 
 # Flutter app (runs PulmoNet-7M on-device via flutter_onnxruntime)
 flutter run
-flutter test                                  # 22 unit/widget tests
+flutter test                                  # 34 unit/widget tests
 flutter test integration_test -d <device>     # real ONNX parity test (needs a device)
 flutter build apk --release --split-per-abi
 ```
@@ -142,8 +146,19 @@ into a changelog.
 - Release APK: arm64-v8a 60.7 MB (26.3 MB model + ~19 MB ORT). minSdk 21, no
   Gradle change needed.
 - **Verified on a real device** (Xiaomi 2306EPN60G, Android 15, arm64):
-  warm-up 294 ms (second call 0 ms), 214 ms median per image end to end,
-  max |dp| vs desktop **7.889e-07** over the six fixtures, no verdict changed.
+  warm-up 294 ms (session reused afterwards), 214 ms median per image, max |dp|
+  vs desktop **7.889e-07** over the six fixtures, no verdict changed.
+- **On-device CAM is live.** The app ships `pulmonet7m_cam.onnx` - the same
+  `best.pt`, exported with a second output `features` [1,512,7,7] because ONNX
+  Runtime cannot return undeclared internal tensors. `logit` is bit-identical to
+  the classification-only export (0.0 over 50 images). The map is
+  `sum_k w_k * features_k` -> ReLU -> /max -> upsample, with the 512 classifier
+  weights carried in `model_card.json`; `lib/services/cam_service.dart` matches
+  the Python implementation to 7.7e-07. CAM failures are caught and never block
+  the classification result. On device: 6/6 heatmaps, +97 ms median.
+- `pulmonet7m.onnx` (classification only) stays in
+  `ai/experiments/pulmonet7m-scratch/export/` untouched; it is simply not the
+  shipped asset any more.
 - The integration test runs *on the device*, so its fixtures must be pushed
   first: `adb push test/fixtures/<file> /data/local/tmp/pulmoai_fixtures/`
   (not the app's own storage - `flutter test` reinstalls the app and wipes it).

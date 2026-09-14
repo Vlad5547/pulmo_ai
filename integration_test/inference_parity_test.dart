@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pulmo_ai/models/analysis_result.dart';
@@ -38,6 +39,7 @@ void main() {
 
   late Map<String, dynamic> expected;
   late Directory fixtures;
+  Directory? dumpDir;
 
   /// Where the fixtures can live, in priority order:
   /// the host repository (desktop targets) and the app's external files
@@ -76,6 +78,22 @@ void main() {
     );
     fixtures = found!;
     debugPrint('fixtures   : ${fixtures.path}');
+
+    // Rendered overlays are written to the app's own storage, the only place
+    // the app may write on Android (SELinux denies writes to /data/local/tmp).
+    // Pull them with:
+    //   adb pull /sdcard/Android/data/com.example.pulmo_ai/files/cam_out
+    try {
+      final base = Platform.isAndroid
+          ? await getExternalStorageDirectory()
+          : Directory('build');
+      if (base != null) {
+        dumpDir = Directory('${base.path}/cam_out')..createSync(recursive: true);
+        debugPrint('cam dumps  : ${dumpDir!.path}');
+      }
+    } catch (error) {
+      debugPrint('cam dumps  : unavailable ($error)');
+    }
     expected = jsonDecode(
       await File('${fixtures.path}/expected.json').readAsString(),
     ) as Map<String, dynamic>;
@@ -111,6 +129,8 @@ void main() {
     var maxDifference = 0.0;
     var totalDifference = 0.0;
     final inferenceMs = <int>[];
+    final camMs = <int>[];
+    var heatmaps = 0;
 
     for (final item in images) {
       final file = File('${fixtures.path}/${item['file']}');
@@ -122,6 +142,29 @@ void main() {
       );
       watch.stop();
       inferenceMs.add(watch.elapsedMilliseconds);
+
+      final heatmap = result.heatmapPng;
+      if (heatmap != null) {
+        heatmaps++;
+        // keep the rendered overlay so it can be pulled off the device and
+        // compared with the Python figures
+        final dump = dumpDir;
+        if (dump != null) {
+          try {
+            File('${dump.path}/${item['file']}')
+                .writeAsBytesSync(heatmap, flush: true);
+          } catch (_) {
+            // dumping is a debug convenience, never a reason to fail
+          }
+        }
+        final decoded = img.decodePng(heatmap);
+        expect(decoded, isNotNull, reason: 'the heatmap must be a valid PNG');
+        expect(decoded!.numChannels, 4, reason: 'the overlay must have alpha');
+        expect(decoded.width, greaterThan(64));
+        expect(decoded.height, greaterThan(64));
+      }
+      final camDuration = service.lastCamDuration;
+      if (camDuration != null) camMs.add(camDuration.inMilliseconds);
 
       final reference = (item['probability_from_png'] as num).toDouble();
       final difference = (result.confidence - reference).abs();
@@ -138,7 +181,9 @@ void main() {
         'desktop ${reference.toStringAsFixed(6)}  '
         'flutter ${result.confidence.toStringAsFixed(6)}  '
         'diff ${difference.toStringAsExponential(2)}  '
-        '${result.verdict.label}  ${watch.elapsedMilliseconds} ms',
+        '${result.verdict.label}  ${watch.elapsedMilliseconds} ms  '
+        'heatmap ${result.hasHeatmap ? "${heatmap!.lengthInBytes ~/ 1024} KB "
+            "in ${service.lastCamDuration?.inMilliseconds} ms" : "none"}',
       );
 
       expect(result.confidence, inInclusiveRange(0.0, 1.0));
@@ -150,6 +195,7 @@ void main() {
     }
 
     inferenceMs.sort();
+    camMs.sort();
     debugPrint('---------------------------------------------------------');
     debugPrint('images      : ${images.length}');
     debugPrint('max diff    : ${maxDifference.toStringAsExponential(3)}');
@@ -157,6 +203,9 @@ void main() {
         '${(totalDifference / images.length).toStringAsExponential(3)}');
     debugPrint('inference   : median ${inferenceMs[inferenceMs.length ~/ 2]} ms '
         '(min ${inferenceMs.first}, max ${inferenceMs.last})');
+    debugPrint('heatmaps    : $heatmaps of ${images.length}'
+        '${camMs.isEmpty ? "" : ", CAM median ${camMs[camMs.length ~/ 2]} ms "
+            "(min ${camMs.first}, max ${camMs.last})"}');
     debugPrint('=========================================================');
 
     // The Dart pipeline reproduces the desktop probability to ~8e-07 on these
@@ -164,6 +213,9 @@ void main() {
     // catching any real drift.
     expect(maxDifference, lessThan(1e-3),
         reason: 'Dart preprocessing drifted from the Python pipeline');
+    expect(heatmaps, images.length,
+        reason: 'every image should produce an activation map');
+    expect(service.lastCamError, isNull);
 
     await service.dispose();
     expect(service.isReady, isFalse);

@@ -8,6 +8,7 @@ import '../models/analysis_result.dart';
 import '../models/model_info.dart';
 import '../models/xray_image.dart';
 import 'analysis_service.dart';
+import 'cam_service.dart';
 import 'image_preprocessor.dart';
 
 /// Local, offline inference with the exported PulmoNet-7M model.
@@ -18,6 +19,11 @@ import 'image_preprocessor.dart';
 ///
 /// The model emits one raw logit; sigmoid and the decision threshold from the
 /// model card are applied here, exactly as in the Python evaluation.
+///
+/// The bundled graph also returns the last convolutional feature map, so a
+/// class activation map comes out of the same forward pass at no extra
+/// inference cost. Building it is best-effort: if anything about the map fails,
+/// the classification result is still returned, without a heatmap.
 class OnnxAnalysisService implements AnalysisService {
   OnnxAnalysisService({
     OnnxRuntime? runtime,
@@ -33,7 +39,14 @@ class OnnxAnalysisService implements AnalysisService {
   ModelInfo? _modelInfo;
   OrtSession? _session;
   ImagePreprocessor? _preprocessor;
+  CamService? _camService;
   Future<void>? _warmUpInFlight;
+
+  /// How long the last activation map took to build, for diagnostics.
+  Duration? lastCamDuration;
+
+  /// Why the last activation map could not be built, if it could not.
+  String? lastCamError;
 
   /// Time the one-off session creation took, for diagnostics and the UI.
   Duration? warmUpDuration;
@@ -67,6 +80,10 @@ class OnnxAnalysisService implements AnalysisService {
         mean: info.mean,
         std: info.std,
       );
+      _camService = CamService(
+        weights: info.camWeights,
+        gridSize: info.camGridSize,
+      );
       _session = await _runtime.createSessionFromAsset(
         info.assetPath,
         options: OrtSessionOptions(providers: providers),
@@ -81,6 +98,7 @@ class OnnxAnalysisService implements AnalysisService {
     } catch (error, stackTrace) {
       _session = null;
       _preprocessor = null;
+      _camService = null;
       debugPrint('PulmoAI: model load failed: $error');
       Error.throwWithStackTrace(
         ModelUnavailableException(
@@ -92,11 +110,50 @@ class OnnxAnalysisService implements AnalysisService {
     }
   }
 
+  /// Best-effort activation map. Never throws: a failure here must not cost
+  /// the user the classification result, so it is logged and reported through
+  /// [lastCamError] instead.
+  Future<Uint8List?> _buildHeatmap(
+    OrtValue? features, {
+    required int sourceWidth,
+    required int sourceHeight,
+  }) async {
+    final cam = _camService;
+    lastCamDuration = null;
+    lastCamError = null;
+    if (cam == null || features == null) {
+      lastCamError = 'the model returned no feature map';
+      return null;
+    }
+
+    final watch = Stopwatch()..start();
+    try {
+      final flat = (await features.asFlattenedList())
+          .map((value) => (value as num).toDouble())
+          .toList(growable: false);
+      final map = cam.computeMap(flat);
+      final png = cam.renderOverlayPng(
+        map,
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight,
+      );
+      watch.stop();
+      lastCamDuration = watch.elapsed;
+      return png;
+    } catch (error) {
+      watch.stop();
+      lastCamError = error.toString();
+      debugPrint('PulmoAI: activation map unavailable: $error');
+      return null;
+    }
+  }
+
   @override
   Future<void> dispose() async {
     final session = _session;
     _session = null;
     _preprocessor = null;
+    _camService = null;
     try {
       await session?.close();
     } catch (error) {
@@ -125,7 +182,7 @@ class OnnxAnalysisService implements AnalysisService {
 
     // Decoding and resizing a 1024x1024 radiograph is CPU-bound; keep it off
     // the UI isolate so the progress indicator stays smooth.
-    final input = await compute(
+    final prepared = await compute(
       _preprocessInIsolate,
       _PreprocessRequest(
         bytes: bytes,
@@ -134,6 +191,7 @@ class OnnxAnalysisService implements AnalysisService {
         std: info.std,
       ),
     );
+    final input = prepared.tensor;
 
     OrtValue? inputValue;
     Map<String, OrtValue>? outputs;
@@ -154,6 +212,12 @@ class OnnxAnalysisService implements AnalysisService {
       }
       final logit = (flat.first as num).toDouble();
       final probability = 1.0 / (1.0 + math.exp(-logit));
+
+      final heatmap = await _buildHeatmap(
+        outputs[info.featuresOutputName],
+        sourceWidth: prepared.sourceWidth,
+        sourceHeight: prepared.sourceHeight,
+      );
       stopwatch.stop();
 
       return AnalysisResult(
@@ -167,6 +231,7 @@ class OnnxAnalysisService implements AnalysisService {
         modelVersion: info.version,
         notes: 'On-device inference, decision threshold '
             '${info.threshold.toStringAsFixed(2)}.',
+        heatmapPng: heatmap,
       );
     } finally {
       await inputValue?.dispose();
@@ -191,6 +256,21 @@ class ModelUnavailableException implements Exception {
   String toString() => message;
 }
 
+/// Tensor plus the geometry of the source image, so the activation map can be
+/// rendered with the same aspect ratio.
+@immutable
+class _PreparedImage {
+  const _PreparedImage({
+    required this.tensor,
+    required this.sourceWidth,
+    required this.sourceHeight,
+  });
+
+  final Float32List tensor;
+  final int sourceWidth;
+  final int sourceHeight;
+}
+
 @immutable
 class _PreprocessRequest {
   const _PreprocessRequest({
@@ -207,11 +287,16 @@ class _PreprocessRequest {
 }
 
 /// Top-level function so it can run in a background isolate.
-Float32List _preprocessInIsolate(_PreprocessRequest request) {
+_PreparedImage _preprocessInIsolate(_PreprocessRequest request) {
   final preprocessor = ImagePreprocessor(
     imageSize: request.imageSize,
     mean: request.mean,
     std: request.std,
   );
-  return preprocessor.toModelInput(request.bytes);
+  final size = preprocessor.sourceSize(request.bytes);
+  return _PreparedImage(
+    tensor: preprocessor.toModelInput(request.bytes),
+    sourceWidth: size.$1,
+    sourceHeight: size.$2,
+  );
 }

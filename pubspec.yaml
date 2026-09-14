@@ -68,7 +68,7 @@ flutter:
   # The exported PulmoNet-7M model runs locally on the device; the card next to
   # it carries the input contract, the decision threshold and the test metrics.
   assets:
-    - assets/models/pulmonet7m.onnx
+    - assets/models/pulmonet7m_cam.onnx
     - assets/models/model_card.json
 
   # An image asset can refer to one or more resolution-specific "variants", see

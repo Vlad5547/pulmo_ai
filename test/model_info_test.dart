@@ -19,6 +19,9 @@ void main() {
       expect(info.inputShape, [1, 1, 224, 224]);
       expect(info.inputName, 'input');
       expect(info.outputName, 'logit');
+      expect(info.featuresOutputName, 'features');
+      expect(info.camWeights.length, 512);
+      expect(info.camGridSize, 7);
       expect(info.opset, 17);
       expect(info.precision, 'fp32');
     });
@@ -47,7 +50,7 @@ void main() {
       ) as Map<String, dynamic>;
       final bytes = await rootBundle.load(ModelInfo.defaultAssetPath);
 
-      expect(card['exported_file'], 'pulmonet7m.onnx');
+      expect(card['exported_file'], 'pulmonet7m_cam.onnx');
       expect(bytes.lengthInBytes, greaterThan(20 * 1024 * 1024));
       expect(card['sha256'], isA<String>());
     });

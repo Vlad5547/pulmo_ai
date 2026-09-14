@@ -77,6 +77,18 @@ class ImagePreprocessor {
   /// The shape that goes with [toModelInput].
   List<int> get inputShape => [1, 1, imageSize, imageSize];
 
+  /// Width and height of the encoded image, before the resize. The activation
+  /// map is rendered with this aspect ratio so it lines up with the radiograph.
+  (int, int) sourceSize(Uint8List encoded) {
+    final decoded = img.decodeImage(encoded);
+    if (decoded == null) {
+      throw const ImagePreprocessingException(
+        'The file could not be decoded as an image.',
+      );
+    }
+    return (decoded.width, decoded.height);
+  }
+
   // -- internals ----------------------------------------------------------
 
   /// Full-resolution single channel in `[0, 1]`.
