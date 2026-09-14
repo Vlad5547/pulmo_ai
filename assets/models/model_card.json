@@ -1,0 +1,56 @@
+{
+  "model_name": "PulmoNet-7M",
+  "model_version": "1.0.0",
+  "description": "Custom CNN trained from scratch on the RSNA Pneumonia Detection Challenge 2018 (adjudicated) dataset. Binary classification of lung opacity on chest radiographs.",
+  "checkpoint": "pulmonet7m-scratch/best.pt (epoch 13)",
+  "exported_file": "pulmonet7m.onnx",
+  "sha256": "33f06fa32745467adf495ff47d72768ca99221a30b1fcf027f69812829b88352",
+  "format": {
+    "type": "ONNX",
+    "opset": 17,
+    "precision": "fp32",
+    "quantisation": "none"
+  },
+  "input": {
+    "name": "input",
+    "shape": [
+      1,
+      1,
+      224,
+      224
+    ],
+    "dtype": "float32",
+    "layout": "NCHW",
+    "preprocessing": {
+      "colour": "grayscale",
+      "resize": "224x224",
+      "scale": "pixel / 255",
+      "normalisation_mean": 0.4932,
+      "normalisation_std": 0.2458
+    }
+  },
+  "output": {
+    "name": "logit",
+    "shape": [
+      1,
+      1
+    ],
+    "dtype": "float32",
+    "activation": "sigmoid gives p(Lung Opacity)"
+  },
+  "threshold": 0.5,
+  "parameter_count": 7065953,
+  "classes": {
+    "0": "No Pneumonia",
+    "1": "Pneumonia / Lung Opacity"
+  },
+  "test_metrics": {
+    "roc_auc": 0.8739,
+    "auprc": 0.6794,
+    "accuracy": 0.7779,
+    "recall": 0.8293,
+    "precision": 0.5228,
+    "f1": 0.6413
+  },
+  "test_metrics_note": "Measured once on the held-out test split (4452 images) at threshold 0.5. Research prototype, not a medical device."
+}

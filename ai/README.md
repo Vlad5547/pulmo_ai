@@ -991,7 +991,178 @@ contract from: input name and shape, normalisation constants, output meaning
 and the 0.5 threshold.
 
 ---
-## 14. Known issues and notes
+
+## 14. Flutter integration — on-device inference
+
+The app runs PulmoNet-7M **locally on the device**: the ONNX model ships inside
+the APK, there is no server, no network call and no cloud inference. Nothing in
+the AI pipeline was changed for this — the checkpoint, the exported model and
+the test results are the same files.
+
+### Architecture
+
+```
+image_picker (gallery / camera)
+   ↓  XRayImage {name, path}
+ImagePreprocessor            lib/services/image_preprocessor.dart
+   decode PNG/JPEG → grayscale plane → triangle resize 224×224
+   → /255 → (x − 0.4932) / 0.2458 → Float32List [1,1,224,224]
+   ↓  (runs in a background isolate via compute())
+OnnxAnalysisService          lib/services/onnx_analysis_service.dart
+   flutter_onnxruntime session (created once in warmUp, reused)
+   ↓  logit → sigmoid → probability → threshold 0.5
+AnalysisResult → Result screen → HistoryRepository
+```
+
+| Piece | Location |
+|---|---|
+| Model | `assets/models/pulmonet7m.onnx` (28.26 MB, fp32, opset 17) |
+| Model card | `assets/models/model_card.json` — input contract, threshold, test metrics |
+| Card parser | `lib/models/model_info.dart` |
+| Preprocessing | `lib/services/image_preprocessor.dart` |
+| Inference | `lib/services/onnx_analysis_service.dart` |
+| Injection | `lib/main.dart` (`OnnxAnalysisService()`) |
+
+`MockAnalysisService` stays in the project and implements the same
+`AnalysisService` contract — it is what the widget tests use and what you inject
+in `main.dart` to run the UI without the model.
+
+### Preprocessing: matching the training pipeline exactly
+
+The app must feed the model the same tensor Python does, and this is where the
+integration nearly went wrong. Three issues were found and fixed by measuring
+against the Python pipeline on six fixture radiographs:
+
+1. **`luminanceNormalized` on a single-channel image** still weights three
+   channels, with green and blue read as 0 — it returned ~30 % of the true
+   pixel value. The channel is now read explicitly.
+2. **`img.grayscale()` truncates** the weighted sum, biasing every pixel of an
+   RGB source by up to 1/255.
+3. **The resize filter.** Training used
+   `F.interpolate(..., mode='bilinear', antialias=True)`, a triangle kernel
+   whose support scales with the downscale factor. The `image` package offers
+   `Interpolation.linear` (four nearest source pixels — throws away ~95 % of a
+   1024² radiograph) and `Interpolation.average` (a box filter). The box filter
+   is off by up to **0.17 of the pixel range** and moved the predicted
+   probability by as much as **2.1e-2**. The triangle filter is therefore
+   implemented directly in `ImagePreprocessor._resizeTriangle` (separable,
+   precomputed weights, ~60 lines) and reproduces PyTorch to ~5e-06 per pixel.
+
+Measured agreement after the fix, six fixtures, same ONNX graph on both sides:
+
+| | worst | mean |
+|---|---|---|
+| tensor, per element | 5.17e-05 | 6.99e-07 |
+| **predicted probability** | **7.88e-07** | 2.6e-07 |
+
+| Fixture | class | desktop (Python) | Dart preprocessing | &#124;Δp&#124; |
+|---|---|---|---|---|
+| 509903.png | Lung Opacity | 0.980178 | 0.980178 | 1.8e-07 |
+| 507388.png | Lung Opacity | 0.809503 | 0.809503 | 2.6e-07 |
+| 287366.png | Normal | 0.017939 | 0.017939 | 1.2e-08 |
+| 448931.png | Normal | 0.013253 | 0.013253 | 2.3e-07 |
+| 191950.png | No Lung Opacity / Not Normal | 0.607704 | 0.607704 | 1.0e-07 |
+| 294012.png | No Lung Opacity / Not Normal | 0.312609 | 0.312608 | 7.9e-07 |
+
+The fixtures are lossless PNG exports of six test-split DICOM files; the PNG
+round-trip itself changes the probability by exactly 0.0, so the numbers above
+isolate the Dart implementation.
+
+### Threshold and result
+
+The decision threshold is **0.50**, read from the model card — the value fixed
+on the validation split before the test evaluation, not a UI constant. The
+Result screen shows the model name and version, the probability as confidence,
+the verdict and the processing time, and states that the output is a research
+prototype and not a diagnosis. Bounding boxes stay empty: CAM is not integrated
+yet.
+
+### Warm-up and session lifecycle
+
+`warmUp()` loads the model card and opens the ONNX session **once**; `main.dart`
+kicks it off at start-up so the first analysis does not pay for it, and a
+failure there is not fatal — it is retried on the first analysis and surfaces on
+the Analyze screen. Concurrent `warmUp()` calls share one future, so a second
+session is never created. `dispose()` closes the session and tolerates a
+platform failure (it must not take the app down).
+
+If the model cannot be loaded, the Analyze screen returns to the idle state with
+an explanatory message, the picked image stays selected and the button works
+again — no hung loading indicator.
+
+### Running it
+
+```powershell
+flutter run                                  # debug, on a connected device
+flutter build apk --release --split-per-abi  # release APKs
+flutter test                                 # 22 unit/widget tests
+
+# on-device parity test: push the fixtures once, then run
+adb shell mkdir -p /data/local/tmp/pulmoai_fixtures
+adb push test/fixtures/509903.png /data/local/tmp/pulmoai_fixtures/
+adb push test/fixtures/507388.png /data/local/tmp/pulmoai_fixtures/
+adb push test/fixtures/287366.png /data/local/tmp/pulmoai_fixtures/
+adb push test/fixtures/448931.png /data/local/tmp/pulmoai_fixtures/
+adb push test/fixtures/191950.png /data/local/tmp/pulmoai_fixtures/
+adb push test/fixtures/294012.png /data/local/tmp/pulmoai_fixtures/
+adb push test/fixtures/expected.json /data/local/tmp/pulmoai_fixtures/
+flutter test integration_test -d <android-device-id>
+```
+
+The test body executes **on the device**, so it cannot see the host repository.
+`/data/local/tmp` is used rather than the app's own storage because
+`flutter test` reinstalls the app on every run, which wipes app data; the shell
+tmp directory survives that and is readable by the app.
+
+Release APK sizes: **arm64-v8a 60.7 MB**, armeabi-v7a 53.3 MB, x86_64 65.7 MB —
+26.3 MB of that is the compressed model and ~19 MB the ONNX Runtime native
+library.
+
+Android: `flutter_onnxruntime` requires **minSdk 21**, which is what the Flutter
+template already sets — no Gradle, NDK or ABI change was needed. iOS is not
+configured separately; the same code path is what the runtime supports there.
+
+### Measured on a real device
+
+Xiaomi 2306EPN60G, Android 15 (API 35), arm64, debug build, CPU execution
+provider:
+
+| | |
+|---|---|
+| Warm-up (session creation) | **294 ms**, second call **0 ms** (session reused) |
+| Per image, decode + preprocess + inference | median **214 ms** (min 192, max 407; the first image includes isolate start-up) |
+| max &#124;Δp&#124; vs desktop | **7.889e-07** |
+| mean &#124;Δp&#124; | 2.593e-07 |
+
+| Fixture | class | desktop | Android | &#124;Δp&#124; | verdict |
+|---|---|---|---|---|---|
+| 509903.png | Lung Opacity | 0.980178 | 0.980178 | 1.96e-07 | Pneumonia detected |
+| 507388.png | Lung Opacity | 0.809503 | 0.809503 | 2.55e-07 | Pneumonia detected |
+| 287366.png | Normal | 0.017939 | 0.017939 | 1.15e-08 | No signs of pneumonia |
+| 448931.png | Normal | 0.013253 | 0.013253 | 2.31e-07 | No signs of pneumonia |
+| 191950.png | No Lung Opacity / Not Normal | 0.607704 | 0.607704 | 7.33e-08 | Pneumonia detected |
+| 294012.png | No Lung Opacity / Not Normal | 0.312609 | 0.312608 | 7.89e-07 | No signs of pneumonia |
+
+No verdict differs from the desktop run.
+
+### Limits of this version
+
+- **PNG/JPEG only.** DICOM is not read on the device: the dataset files are
+  JPEG-Baseline compressed inside DICOM, and the pure-Dart parsers on pub.dev
+  handle uncompressed/RLE only. A photograph of a film or a monitor also
+  introduces glare and geometry the model never saw in training.
+- **CAM, bounding boxes, DICOM picking, INT8 quantisation and any backend are
+  deliberately out of scope** for this version.
+- Inference runs on the CPU execution provider. NNAPI/XNNPACK are available in
+  the plugin and can be enabled later, but they change the arithmetic slightly
+  and would need their own parity check.
+- The Windows target cannot be built on this machine (no Visual Studio
+  toolchain), so the parity test runs on Android.
+- The manual gallery flow (pick → analyse → result → history) has to be walked
+  through by hand; only the programmatic pipeline is automated.
+
+---
+## 15. Known issues and notes
 
 * **Pixel data is JPEG-compressed** — transfer syntax `1.2.840.10008.1.2.4.50`
   (JPEG Baseline, Process 1) for all 30 000 files, so `pydicom` alone cannot
@@ -1031,5 +1202,8 @@ and the 0.5 threshold.
   the GPU with TF32 convolutions, so any CPU re-computation differs by up to
   1.2e-4 (section 13). Irrelevant for the metrics, worth knowing before
   comparing numbers across devices.
-* Not done yet: the Flutter integration itself - the exported ONNX model is
-  ready and verified, but the app still runs on the mock service.
+* The Flutter app now runs the model on-device (section 14); what is left is
+  the run on real hardware, plus CAM in the UI and DICOM support.
+* The `image` package resize filters do not match PyTorch: never swap the
+  hand-written triangle filter for `Interpolation.average` or `.linear`
+  without re-running `test/preprocessing_parity_test.dart`.

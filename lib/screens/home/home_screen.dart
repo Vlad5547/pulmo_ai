@@ -116,9 +116,10 @@ class HomeScreen extends StatelessWidget {
         SizedBox(height: 12),
         Text(
           'AI-based pneumonia detection from chest X-ray images. '
-          'The inference backend is currently a mock service; the UI is '
-          'wired so a model trained on the RSNA Pneumonia Detection '
-          'Challenge dataset can be plugged in without UI changes.',
+          'Analysis runs entirely on this device with PulmoNet-7M, a '
+          'convolutional network trained from scratch on the RSNA '
+          'Pneumonia Detection Challenge dataset. No image leaves the '
+          'phone and no network connection is required.',
         ),
       ],
     );

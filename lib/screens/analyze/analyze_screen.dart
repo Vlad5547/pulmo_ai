@@ -5,6 +5,8 @@ import '../../app/service_locator.dart';
 import '../../app/theme.dart';
 import '../../models/analysis_record.dart';
 import '../../models/xray_image.dart';
+import '../../services/image_preprocessor.dart';
+import '../../services/onnx_analysis_service.dart';
 import '../../widgets/info_note.dart';
 import '../../widgets/image_source_sheet.dart';
 import '../../widgets/responsive_content.dart';
@@ -79,11 +81,25 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
       );
     } catch (error) {
       if (!mounted) return;
+      // The screen returns to the idle state, so the image stays selected and
+      // the user can simply press Analyze again.
       setState(() {
         _stage = _Stage.failed;
-        _error = error.toString();
+        _error = _describe(error);
       });
     }
+  }
+
+  /// Turns backend exceptions into something worth showing on screen.
+  String _describe(Object error) {
+    if (error is ModelUnavailableException) {
+      return '${error.message} You can try again; if it keeps failing, the '
+          'app has to be reinstalled so the bundled model is restored.';
+    }
+    if (error is ImagePreprocessingException) {
+      return '${error.message} Pick a PNG or JPEG export of the study.';
+    }
+    return 'Analysis failed: $error';
   }
 
   @override
@@ -153,7 +169,7 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
                 const SizedBox(height: 16),
                 InfoNote(
                   icon: Icons.error_outline,
-                  title: 'Analysis failed',
+                  title: 'Analysis could not be completed',
                   text: _error!,
                   color: context.clinical.finding,
                 ),

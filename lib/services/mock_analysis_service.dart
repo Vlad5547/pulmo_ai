@@ -21,6 +21,9 @@ class MockAnalysisService implements AnalysisService {
   Future<void> warmUp() async {}
 
   @override
+  Future<void> dispose() async {}
+
+  @override
   Future<AnalysisResult> analyze(XRayImage image) async {
     final stopwatch = Stopwatch()..start();
     await Future<void>.delayed(latency);

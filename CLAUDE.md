@@ -67,8 +67,11 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --im
 # regenerate the Ukrainian thesis report (embeds the figures above)
 & $py docs\make_report.py
 
-# Flutter app
+# Flutter app (runs PulmoNet-7M on-device via flutter_onnxruntime)
 flutter run
+flutter test                                  # 22 unit/widget tests
+flutter test integration_test -d <device>     # real ONNX parity test (needs a device)
+flutter build apk --release --split-per-abi
 ```
 
 ## Keeping the documentation current
@@ -124,9 +127,26 @@ into a changelog.
   PyTorch on CPU: max 1.8e-07 over 100 images; vs the stored GPU predictions
   1.2e-04, which is TF32 arithmetic, not an export defect. Latency on desktop
   CPU 11.4 ms. Contract for Flutter is in `export_summary.json`.
-- Mobile runtime decision (approved): **ONNX Runtime via `flutter_onnxruntime`**,
-  fp32 opset 17, **no INT8 for now**. Flutter still runs on the mock service -
-  integration is the next step, not started.
+- Mobile runtime (approved and integrated): **ONNX Runtime via
+  `flutter_onnxruntime`**, fp32 opset 17, no INT8. The app runs the model
+  **on-device, offline**: `assets/models/pulmonet7m.onnx` +
+  `model_card.json`, `lib/services/image_preprocessor.dart`,
+  `lib/services/onnx_analysis_service.dart`, injected in `main.dart`.
+  `MockAnalysisService` is kept for tests.
+- **Preprocessing parity is the fragile part.** The `image` package resize
+  filters do not match PyTorch (`Interpolation.average` shifted the
+  probability by 2.1e-2), so `ImagePreprocessor` implements the antialiased
+  triangle filter by hand. Measured agreement with Python: **7.9e-07** on the
+  probability. Never swap it out without re-running
+  `test/preprocessing_parity_test.dart`.
+- Release APK: arm64-v8a 60.7 MB (26.3 MB model + ~19 MB ORT). minSdk 21, no
+  Gradle change needed.
+- **Verified on a real device** (Xiaomi 2306EPN60G, Android 15, arm64):
+  warm-up 294 ms (second call 0 ms), 214 ms median per image end to end,
+  max |dp| vs desktop **7.889e-07** over the six fixtures, no verdict changed.
+- The integration test runs *on the device*, so its fixtures must be pushed
+  first: `adb push test/fixtures/<file> /data/local/tmp/pulmoai_fixtures/`
+  (not the app's own storage - `flutter test` reinstalls the app and wipes it).
 - Inference + CAM are implemented on top of the existing checkpoint:
   `ai/src/inference/predict.py` (probability, class, threshold 0.5) and
   `ai/src/analysis/cam.py` (original / heatmap / overlay / result.json per

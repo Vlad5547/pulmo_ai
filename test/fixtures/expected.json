@@ -1,0 +1,60 @@
+{
+  "note": "Reference probabilities for the Flutter parity test. Produced by onnxruntime on the desktop from the exported pulmonet7m.onnx.",
+  "model": "PulmoNet-7M",
+  "threshold": 0.5,
+  "preprocessing": {
+    "resize": 224,
+    "mean": 0.4932,
+    "std": 0.2458
+  },
+  "images": [
+    {
+      "sop_instance_uid": "1.2.276.0.7230010.3.1.4.8323329.10044.1517874346.509903",
+      "file": "509903.png",
+      "true_class": "Lung Opacity",
+      "probability_from_dicom": 0.980178,
+      "probability_from_png": 0.980178,
+      "png_bytes": 266265
+    },
+    {
+      "sop_instance_uid": "1.2.276.0.7230010.3.1.4.8323329.10048.1517874346.507388",
+      "file": "507388.png",
+      "true_class": "Lung Opacity",
+      "probability_from_dicom": 0.809503,
+      "probability_from_png": 0.809503,
+      "png_bytes": 335658
+    },
+    {
+      "sop_instance_uid": "1.2.276.0.7230010.3.1.4.8323329.10016.1517874346.287366",
+      "file": "287366.png",
+      "true_class": "Normal",
+      "probability_from_dicom": 0.017939,
+      "probability_from_png": 0.017939,
+      "png_bytes": 373750
+    },
+    {
+      "sop_instance_uid": "1.2.276.0.7230010.3.1.4.8323329.10037.1517874346.448931",
+      "file": "448931.png",
+      "true_class": "Normal",
+      "probability_from_dicom": 0.013253,
+      "probability_from_png": 0.013253,
+      "png_bytes": 331873
+    },
+    {
+      "sop_instance_uid": "1.2.276.0.7230010.3.1.4.8323329.10005.1517874346.191950",
+      "file": "191950.png",
+      "true_class": "No Lung Opacity / Not Normal",
+      "probability_from_dicom": 0.607704,
+      "probability_from_png": 0.607704,
+      "png_bytes": 391723
+    },
+    {
+      "sop_instance_uid": "1.2.276.0.7230010.3.1.4.8323329.10014.1517874346.294012",
+      "file": "294012.png",
+      "true_class": "No Lung Opacity / Not Normal",
+      "probability_from_dicom": 0.312609,
+      "probability_from_png": 0.312609,
+      "png_bytes": 401092
+    }
+  ]
+}
