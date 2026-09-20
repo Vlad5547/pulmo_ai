@@ -1,0 +1,216 @@
+{
+  "@@locale": "en",
+  "appTitle": "PulmoAI",
+  "appTagline": "Chest X-ray screening",
+  "navHome": "Home",
+  "navHistory": "History",
+  "languageTitle": "Language",
+  "languageSystem": "System default",
+  "languageEnglish": "English",
+  "languageUkrainian": "Українська",
+  "languageGerman": "Deutsch",
+  "aboutTooltip": "About PulmoAI",
+  "aboutText": "AI-based pneumonia detection from chest X-ray images. Analysis runs entirely on this device with PulmoNet-7M, a convolutional network trained from scratch on the RSNA Pneumonia Detection Challenge dataset. No image leaves the device.",
+  "heroBadge": "AI-ASSISTED SCREENING",
+  "heroTitle": "Detect signs of pneumonia\non a chest X-ray",
+  "heroSubtitle": "PulmoAI analyses a chest radiograph and highlights lung regions associated with its decision.",
+  "heroAnalyze": "Analyze X-ray",
+  "heroGallery": "Choose from gallery",
+  "homeHowItWorks": "How it works",
+  "homeRecentAnalyses": "Recent analyses",
+  "homeSeeAll": "See all",
+  "homeStudiesAnalysed": "Studies analysed",
+  "homeFindingsFlagged": "Findings flagged",
+  "homeAvgConfidence": "Avg. confidence",
+  "homePrototypeTitle": "Research prototype",
+  "homePrototypeText": "PulmoAI is a decision-support prototype built for a master's thesis on the RSNA Pneumonia Detection Challenge dataset. It is not a medical device and must not be used for diagnosis.",
+  "stepAddTitle": "Add the study",
+  "stepAddText": "Open the original DICOM, pick a chest X-ray from the gallery, or capture it with the camera.",
+  "stepRunTitle": "Run the model",
+  "stepRunText": "The image is normalised and passed to the pneumonia detection network running on this device.",
+  "stepReviewTitle": "Review the result",
+  "stepReviewText": "Get a verdict, a probability and the regions that drove it.",
+  "analyzeTitle": "Analyze X-ray",
+  "analyzeReplace": "Replace",
+  "analyzeSelectedStudy": "Selected study",
+  "analyzeStatusAnalysing": "Analysing",
+  "analyzeStatusReady": "Ready",
+  "analyzeRun": "Analyze",
+  "analyzeSelectImage": "Select image",
+  "analyzeReplaceImage": "Replace image",
+  "analyzeErrorTitle": "Analysis could not be completed",
+  "analyzeTipsTitle": "For the most reliable result",
+  "analyzeTipsText": "Use a frontal (PA or AP) chest radiograph, keep the whole lung field in frame and avoid glare when photographing a film. Lateral views are not supported.",
+  "analyzeNoImageTitle": "No image selected",
+  "analyzeNoImageText": "Pick a chest X-ray to continue",
+  "analyzeBrowse": "Browse images",
+  "progressPreparing": "Preparing image",
+  "progressNormalising": "Normalising intensities",
+  "progressInference": "Running inference",
+  "progressReport": "Building the report",
+  "progressRunning": "Analysing the study…",
+  "historyTitle": "History",
+  "historyClearTooltip": "Clear history",
+  "historyClearQuestion": "Clear history?",
+  "historyClearBody": "All stored analyses will be removed from this device.",
+  "historyRemoved": "Removed {name}",
+  "@historyRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "historyEmptyTitle": "No analyses yet",
+  "historyEmptyText": "Every X-ray you analyse is saved here with its verdict, probability and date.",
+  "historyFilterEmptyTitle": "Nothing in this filter",
+  "historyFilterEmptyText": "Try a different filter to see your other studies.",
+  "filterAll": "All",
+  "filterFindings": "Findings",
+  "filterClear": "Clear",
+  "actionCancel": "Cancel",
+  "actionClear": "Clear",
+  "actionDelete": "Delete",
+  "resultTitle": "Analysis result",
+  "resultBackHome": "Back to home",
+  "resultWhatThisMeans": "What this means",
+  "resultStudyDetails": "Study details",
+  "resultAnalyzeAnother": "Analyze another X-ray",
+  "resultShareReport": "Share PDF report",
+  "resultReportFailed": "The report could not be created: {error}",
+  "@resultReportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "resultHeatmapText": "The model heatmap marks the regions associated with the model's decision. It is computed from the last convolutional layer on a 7x7 grid and enlarged, so it indicates an area, not a boundary — and it is not a localisation of disease.",
+  "resultNoHeatmapText": "No visualization layer is available for this study; the verdict and the probability below still stand on their own.",
+  "resultDisclaimerTitle": "Not a diagnosis",
+  "resultDisclaimerText": "This is the output of a research prototype running on this device. It is not a diagnosis and must be confirmed by a qualified radiologist before any clinical action.",
+  "overlayOriginal": "Original",
+  "overlayHeatmap": "Model heatmap",
+  "verdictPneumonia": "Pneumonia detected",
+  "verdictNormal": "No signs of pneumonia",
+  "verdictPneumoniaDescription": "Opacity consistent with pneumonia",
+  "verdictNormalDescription": "No opacity consistent with pneumonia",
+  "interpretationFinding": "Finding",
+  "interpretationNextStep": "Suggested next step",
+  "interpretationLimitations": "Limitations",
+  "positiveFinding": "The model found an area of increased opacity that resembles a pneumonic infiltrate.",
+  "positiveNextStep": "Correlate with symptoms, auscultation and inflammatory markers, and have a radiologist confirm the reading.",
+  "positiveLimitations": "Other conditions (oedema, atelectasis, tumours) can produce a similar opacity; the model does not tell them apart.",
+  "negativeFinding": "No opacity typical of pneumonia was detected on this radiograph.",
+  "negativeNextStep": "A negative screen does not rule out infection. If symptoms persist, repeat imaging or a CT scan may be warranted.",
+  "negativeLimitations": "Early or subtle infiltrates, and findings hidden behind the heart or the diaphragm, can be missed.",
+  "confidenceLabel": "Model confidence",
+  "confidenceHigh": "The model is highly confident in this outcome. A radiologist should still confirm it.",
+  "confidenceMedium": "Moderate to high confidence. Consider reviewing the highlighted region carefully.",
+  "confidenceLow": "Low confidence. The image quality or projection may be limiting the model; a repeat study may help.",
+  "detailsStudy": "Study",
+  "detailsAnalysed": "Analysed",
+  "detailsModel": "Model",
+  "detailsInferenceTime": "Inference time",
+  "detailsHeatmap": "Model heatmap",
+  "detailsSource": "Source",
+  "detailsAvailable": "Available",
+  "detailsNotAvailable": "Not available",
+  "sheetTitle": "Add chest X-ray",
+  "sheetSubtitle": "Use a PA or AP projection for the most reliable result. DICOM is read exactly as the model was trained on.",
+  "sheetDicomTitle": "Open a DICOM file",
+  "sheetDicomSubtitle": "The original .dcm study, read losslessly",
+  "sheetGalleryTitle": "Choose from gallery",
+  "sheetGallerySubtitle": "PNG or JPEG export of the study",
+  "sheetCameraTitle": "Capture with camera",
+  "sheetCameraSubtitle": "Photograph a printed film or a monitor",
+  "sheetOpenError": "Could not open the image source: {error}",
+  "@sheetOpenError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerUnavailable": "Image not available on this device",
+  "errorEmptyFile": "The selected file is empty. Pick the study again.",
+  "errorUnsupported": "{message} Open the original DICOM, or a PNG/JPEG export of the study.",
+  "@errorUnsupported": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCorrupt": "{message} The file looks damaged — try copying it from the source again.",
+  "@errorCorrupt": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorModelUnavailable": "{message} You can try again; if it keeps failing, the app has to be reinstalled so the bundled model is restored.",
+  "@errorModelUnavailable": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorAnalysisFailed": "Analysis failed: {error}",
+  "@errorAnalysisFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reportTitle": "Chest X-ray screening report",
+  "reportSubtitle": "Generated on this device by PulmoAI. Not a diagnosis.",
+  "reportStudy": "Study",
+  "reportAnalysed": "Analysed",
+  "reportVerdict": "Verdict",
+  "reportProbability": "Probability of opacity",
+  "reportThreshold": "Decision threshold",
+  "reportModel": "Model",
+  "reportInferenceTime": "Inference time",
+  "reportHeatmapCaption": "Class activation map — the region the decision responded to, not a boundary of disease",
+  "reportNoImages": "The images of this study are no longer available on the device.",
+  "reportDisclaimer": "This report is the output of a research prototype and is not a diagnosis. It must be confirmed by a qualified radiologist before any clinical action.",
+  "reportGeneratedBy": "PulmoAI · PulmoNet-7M · on-device inference, offline",
+  "timeJustNow": "Just now",
+  "timeMinutesAgo": "{count} min ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count} h ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "{count} d ago",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "actionClose": "Close"
+}

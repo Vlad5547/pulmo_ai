@@ -1,0 +1,216 @@
+{
+  "@@locale": "uk",
+  "appTitle": "PulmoAI",
+  "appTagline": "Скринінг рентгенограм ОГК",
+  "navHome": "Головна",
+  "navHistory": "Історія",
+  "languageTitle": "Мова",
+  "languageSystem": "Як у системі",
+  "languageEnglish": "English",
+  "languageUkrainian": "Українська",
+  "languageGerman": "Deutsch",
+  "aboutTooltip": "Про PulmoAI",
+  "aboutText": "Виявлення ознак пневмонії на рентгенограмах органів грудної клітки. Аналіз виконується повністю на цьому пристрої мережею PulmoNet-7M, навченою з нуля на наборі RSNA Pneumonia Detection Challenge. Жодне зображення не залишає пристрій.",
+  "heroBadge": "СКРИНІНГ ІЗ ШТУЧНИМ ІНТЕЛЕКТОМ",
+  "heroTitle": "Виявлення ознак пневмонії\nна рентгенограмі ОГК",
+  "heroSubtitle": "PulmoAI аналізує рентгенограму та підсвічує ділянки легень, які вплинули на рішення моделі.",
+  "heroAnalyze": "Аналізувати знімок",
+  "heroGallery": "Вибрати з галереї",
+  "homeHowItWorks": "Як це працює",
+  "homeRecentAnalyses": "Останні аналізи",
+  "homeSeeAll": "Усі",
+  "homeStudiesAnalysed": "Проаналізовано",
+  "homeFindingsFlagged": "Зі знахідками",
+  "homeAvgConfidence": "Середня впевненість",
+  "homePrototypeTitle": "Дослідницький прототип",
+  "homePrototypeText": "PulmoAI — прототип системи підтримки прийняття рішень, створений у межах магістерської роботи на наборі даних RSNA Pneumonia Detection Challenge. Це не медичний виріб, і його не можна використовувати для встановлення діагнозу.",
+  "stepAddTitle": "Додайте дослідження",
+  "stepAddText": "Відкрийте оригінальний DICOM, виберіть знімок із галереї або зробіть фото камерою.",
+  "stepRunTitle": "Запустіть модель",
+  "stepRunText": "Зображення нормалізується та подається до нейронної мережі, що працює на цьому пристрої.",
+  "stepReviewTitle": "Перегляньте результат",
+  "stepReviewText": "Ви отримаєте вердикт, ймовірність і ділянки, які визначили рішення.",
+  "analyzeTitle": "Аналіз знімка",
+  "analyzeReplace": "Замінити",
+  "analyzeSelectedStudy": "Обране дослідження",
+  "analyzeStatusAnalysing": "Аналіз",
+  "analyzeStatusReady": "Готово",
+  "analyzeRun": "Аналізувати",
+  "analyzeSelectImage": "Вибрати зображення",
+  "analyzeReplaceImage": "Замінити зображення",
+  "analyzeErrorTitle": "Не вдалося виконати аналіз",
+  "analyzeTipsTitle": "Для найнадійнішого результату",
+  "analyzeTipsText": "Використовуйте пряму (PA або AP) рентгенограму ОГК, тримайте в кадрі всі легеневі поля та уникайте відблисків під час фотографування плівки. Бічні проєкції не підтримуються.",
+  "analyzeNoImageTitle": "Зображення не вибрано",
+  "analyzeNoImageText": "Виберіть рентгенограму, щоб продовжити",
+  "analyzeBrowse": "Огляд зображень",
+  "progressPreparing": "Підготовка зображення",
+  "progressNormalising": "Нормалізація інтенсивностей",
+  "progressInference": "Виконання інференсу",
+  "progressReport": "Формування звіту",
+  "progressRunning": "Аналізуємо дослідження…",
+  "historyTitle": "Історія",
+  "historyClearTooltip": "Очистити історію",
+  "historyClearQuestion": "Очистити історію?",
+  "historyClearBody": "Усі збережені аналізи буде видалено з цього пристрою.",
+  "historyRemoved": "Видалено {name}",
+  "@historyRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "historyEmptyTitle": "Аналізів ще немає",
+  "historyEmptyText": "Кожен проаналізований знімок зберігається тут разом із вердиктом, ймовірністю та датою.",
+  "historyFilterEmptyTitle": "За цим фільтром нічого немає",
+  "historyFilterEmptyText": "Спробуйте інший фільтр, щоб побачити інші дослідження.",
+  "filterAll": "Усі",
+  "filterFindings": "Знахідки",
+  "filterClear": "Без знахідок",
+  "actionCancel": "Скасувати",
+  "actionClear": "Очистити",
+  "actionDelete": "Видалити",
+  "resultTitle": "Результат аналізу",
+  "resultBackHome": "На головну",
+  "resultWhatThisMeans": "Що це означає",
+  "resultStudyDetails": "Деталі дослідження",
+  "resultAnalyzeAnother": "Аналізувати інший знімок",
+  "resultShareReport": "Надіслати PDF-звіт",
+  "resultReportFailed": "Не вдалося створити звіт: {error}",
+  "@resultReportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "resultHeatmapText": "Теплова карта позначає ділянки, на які відреагувало рішення моделі. Вона обчислюється з останнього згорткового шару на сітці 7x7 і збільшується, тому вказує на область, а не на межу, і не є локалізацією захворювання.",
+  "resultNoHeatmapText": "Для цього дослідження шар візуалізації недоступний; вердикт і ймовірність нижче залишаються чинними.",
+  "resultDisclaimerTitle": "Це не діагноз",
+  "resultDisclaimerText": "Це результат роботи дослідницького прототипу на цьому пристрої. Він не є діагнозом і має бути підтверджений кваліфікованим лікарем-рентгенологом перед будь-якими клінічними діями.",
+  "overlayOriginal": "Оригінал",
+  "overlayHeatmap": "Теплова карта",
+  "verdictPneumonia": "Виявлено ознаки пневмонії",
+  "verdictNormal": "Ознак пневмонії не виявлено",
+  "verdictPneumoniaDescription": "Затемнення, сумісне з пневмонією",
+  "verdictNormalDescription": "Затемнення, сумісного з пневмонією, немає",
+  "interpretationFinding": "Знахідка",
+  "interpretationNextStep": "Рекомендований наступний крок",
+  "interpretationLimitations": "Обмеження",
+  "positiveFinding": "Модель виявила ділянку підвищеної щільності, схожу на пневмонічний інфільтрат.",
+  "positiveNextStep": "Зіставте з симптомами, даними аускультації та маркерами запалення; висновок має підтвердити рентгенолог.",
+  "positiveLimitations": "Подібне затемнення дають й інші стани (набряк легень, ателектаз, пухлини); модель їх не розрізняє.",
+  "negativeFinding": "Затемнення, типового для пневмонії, на цій рентгенограмі не виявлено.",
+  "negativeNextStep": "Негативний результат скринінгу не виключає інфекції. Якщо симптоми зберігаються, може знадобитися повторне дослідження або КТ.",
+  "negativeLimitations": "Ранні чи слабко виражені інфільтрати, а також зміни за тінню серця чи діафрагми можуть бути пропущені.",
+  "confidenceLabel": "Впевненість моделі",
+  "confidenceHigh": "Модель дуже впевнена в цьому результаті. Його все одно має підтвердити рентгенолог.",
+  "confidenceMedium": "Помірна або висока впевненість. Варто уважно переглянути підсвічену ділянку.",
+  "confidenceLow": "Низька впевненість. Якість або проєкція знімка можуть обмежувати модель; варто повторити дослідження.",
+  "detailsStudy": "Дослідження",
+  "detailsAnalysed": "Проаналізовано",
+  "detailsModel": "Модель",
+  "detailsInferenceTime": "Час інференсу",
+  "detailsHeatmap": "Теплова карта",
+  "detailsSource": "Джерело",
+  "detailsAvailable": "Доступна",
+  "detailsNotAvailable": "Недоступна",
+  "sheetTitle": "Додати рентгенограму",
+  "sheetSubtitle": "Для найнадійнішого результату використовуйте проєкцію PA або AP. DICOM читається саме так, як модель навчалася.",
+  "sheetDicomTitle": "Відкрити файл DICOM",
+  "sheetDicomSubtitle": "Оригінальне дослідження .dcm, без втрат",
+  "sheetGalleryTitle": "Вибрати з галереї",
+  "sheetGallerySubtitle": "Експорт дослідження у PNG або JPEG",
+  "sheetCameraTitle": "Зняти камерою",
+  "sheetCameraSubtitle": "Сфотографувати плівку або екран",
+  "sheetOpenError": "Не вдалося відкрити джерело зображення: {error}",
+  "@sheetOpenError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerUnavailable": "Зображення недоступне на цьому пристрої",
+  "errorEmptyFile": "Вибраний файл порожній. Виберіть дослідження ще раз.",
+  "errorUnsupported": "{message} Відкрийте оригінальний DICOM або експорт дослідження у PNG/JPEG.",
+  "@errorUnsupported": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCorrupt": "{message} Файл виглядає пошкодженим — спробуйте скопіювати його з джерела ще раз.",
+  "@errorCorrupt": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorModelUnavailable": "{message} Спробуйте ще раз; якщо помилка повторюється, застосунок потрібно перевстановити, щоб відновити вбудовану модель.",
+  "@errorModelUnavailable": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorAnalysisFailed": "Аналіз не вдався: {error}",
+  "@errorAnalysisFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reportTitle": "Звіт скринінгу рентгенограми ОГК",
+  "reportSubtitle": "Сформовано на цьому пристрої застосунком PulmoAI. Не є діагнозом.",
+  "reportStudy": "Дослідження",
+  "reportAnalysed": "Проаналізовано",
+  "reportVerdict": "Вердикт",
+  "reportProbability": "Ймовірність затемнення",
+  "reportThreshold": "Поріг рішення",
+  "reportModel": "Модель",
+  "reportInferenceTime": "Час інференсу",
+  "reportHeatmapCaption": "Карта активації класу — ділянка, на яку відреагувало рішення, а не межа патології",
+  "reportNoImages": "Зображення цього дослідження більше недоступні на пристрої.",
+  "reportDisclaimer": "Цей звіт є результатом роботи дослідницького прототипу і не є діагнозом. Він має бути підтверджений кваліфікованим лікарем-рентгенологом перед будь-якими клінічними діями.",
+  "reportGeneratedBy": "PulmoAI · PulmoNet-7M · інференс на пристрої, офлайн",
+  "timeJustNow": "Щойно",
+  "timeMinutesAgo": "{count} хв тому",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count} год тому",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "{count} дн тому",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aboutVersion": "Версія {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "actionClose": "Закрити"
+}

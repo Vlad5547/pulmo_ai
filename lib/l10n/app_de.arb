@@ -1,0 +1,216 @@
+{
+  "@@locale": "de",
+  "appTitle": "PulmoAI",
+  "appTagline": "Thorax-Röntgen-Screening",
+  "navHome": "Start",
+  "navHistory": "Verlauf",
+  "languageTitle": "Sprache",
+  "languageSystem": "Systemsprache",
+  "languageEnglish": "English",
+  "languageUkrainian": "Українська",
+  "languageGerman": "Deutsch",
+  "aboutTooltip": "Über PulmoAI",
+  "aboutText": "KI-gestützte Erkennung von Pneumonie-Zeichen auf Thorax-Röntgenaufnahmen. Die Analyse läuft vollständig auf diesem Gerät mit PulmoNet-7M, einem von Grund auf trainierten Faltungsnetz auf dem Datensatz der RSNA Pneumonia Detection Challenge. Kein Bild verlässt das Gerät.",
+  "heroBadge": "KI-GESTÜTZTES SCREENING",
+  "heroTitle": "Pneumonie-Zeichen auf dem\nThorax-Röntgenbild erkennen",
+  "heroSubtitle": "PulmoAI analysiert eine Thoraxaufnahme und hebt die Lungenregionen hervor, die zur Entscheidung beigetragen haben.",
+  "heroAnalyze": "Aufnahme analysieren",
+  "heroGallery": "Aus der Galerie wählen",
+  "homeHowItWorks": "So funktioniert es",
+  "homeRecentAnalyses": "Letzte Analysen",
+  "homeSeeAll": "Alle ansehen",
+  "homeStudiesAnalysed": "Analysierte Aufnahmen",
+  "homeFindingsFlagged": "Auffällige Befunde",
+  "homeAvgConfidence": "Ø Konfidenz",
+  "homePrototypeTitle": "Forschungsprototyp",
+  "homePrototypeText": "PulmoAI ist ein Prototyp zur Entscheidungsunterstützung, entwickelt im Rahmen einer Masterarbeit auf dem Datensatz der RSNA Pneumonia Detection Challenge. Es ist kein Medizinprodukt und darf nicht zur Diagnose verwendet werden.",
+  "stepAddTitle": "Aufnahme hinzufügen",
+  "stepAddText": "Öffnen Sie die originale DICOM-Datei, wählen Sie ein Röntgenbild aus der Galerie oder nehmen Sie es mit der Kamera auf.",
+  "stepRunTitle": "Modell ausführen",
+  "stepRunText": "Das Bild wird normalisiert und an das auf diesem Gerät laufende Netz zur Pneumonie-Erkennung übergeben.",
+  "stepReviewTitle": "Ergebnis prüfen",
+  "stepReviewText": "Sie erhalten ein Votum, eine Wahrscheinlichkeit und die Regionen, die dazu geführt haben.",
+  "analyzeTitle": "Aufnahme analysieren",
+  "analyzeReplace": "Ersetzen",
+  "analyzeSelectedStudy": "Ausgewählte Aufnahme",
+  "analyzeStatusAnalysing": "Analyse läuft",
+  "analyzeStatusReady": "Bereit",
+  "analyzeRun": "Analysieren",
+  "analyzeSelectImage": "Bild auswählen",
+  "analyzeReplaceImage": "Bild ersetzen",
+  "analyzeErrorTitle": "Analyse konnte nicht abgeschlossen werden",
+  "analyzeTipsTitle": "Für das zuverlässigste Ergebnis",
+  "analyzeTipsText": "Verwenden Sie eine frontale Thoraxaufnahme (PA oder AP), halten Sie das gesamte Lungenfeld im Bild und vermeiden Sie Reflexionen beim Abfotografieren eines Films. Seitliche Aufnahmen werden nicht unterstützt.",
+  "analyzeNoImageTitle": "Kein Bild ausgewählt",
+  "analyzeNoImageText": "Wählen Sie eine Thoraxaufnahme, um fortzufahren",
+  "analyzeBrowse": "Bilder durchsuchen",
+  "progressPreparing": "Bild wird vorbereitet",
+  "progressNormalising": "Intensitäten werden normalisiert",
+  "progressInference": "Inferenz läuft",
+  "progressReport": "Bericht wird erstellt",
+  "progressRunning": "Aufnahme wird analysiert …",
+  "historyTitle": "Verlauf",
+  "historyClearTooltip": "Verlauf löschen",
+  "historyClearQuestion": "Verlauf löschen?",
+  "historyClearBody": "Alle gespeicherten Analysen werden von diesem Gerät entfernt.",
+  "historyRemoved": "{name} entfernt",
+  "@historyRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "historyEmptyTitle": "Noch keine Analysen",
+  "historyEmptyText": "Jede analysierte Aufnahme wird hier mit Votum, Wahrscheinlichkeit und Datum gespeichert.",
+  "historyFilterEmptyTitle": "Nichts in diesem Filter",
+  "historyFilterEmptyText": "Wählen Sie einen anderen Filter, um Ihre übrigen Aufnahmen zu sehen.",
+  "filterAll": "Alle",
+  "filterFindings": "Befunde",
+  "filterClear": "Ohne Befund",
+  "actionCancel": "Abbrechen",
+  "actionClear": "Löschen",
+  "actionDelete": "Löschen",
+  "resultTitle": "Analyseergebnis",
+  "resultBackHome": "Zurück zum Start",
+  "resultWhatThisMeans": "Was das bedeutet",
+  "resultStudyDetails": "Details zur Aufnahme",
+  "resultAnalyzeAnother": "Weitere Aufnahme analysieren",
+  "resultShareReport": "PDF-Bericht teilen",
+  "resultReportFailed": "Der Bericht konnte nicht erstellt werden: {error}",
+  "@resultReportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "resultHeatmapText": "Die Heatmap markiert die Regionen, auf die die Entscheidung des Modells reagiert hat. Sie wird aus der letzten Faltungsschicht auf einem 7x7-Raster berechnet und vergrößert; sie zeigt also einen Bereich, keine Grenze, und ist keine Lokalisierung der Erkrankung.",
+  "resultNoHeatmapText": "Für diese Aufnahme ist keine Visualisierungsebene verfügbar; Votum und Wahrscheinlichkeit darunter gelten unabhängig davon.",
+  "resultDisclaimerTitle": "Keine Diagnose",
+  "resultDisclaimerText": "Dies ist die Ausgabe eines Forschungsprototyps, der auf diesem Gerät läuft. Sie ist keine Diagnose und muss vor jeder klinischen Maßnahme von einer qualifizierten Radiologin oder einem qualifizierten Radiologen bestätigt werden.",
+  "overlayOriginal": "Original",
+  "overlayHeatmap": "Heatmap",
+  "verdictPneumonia": "Pneumonie-Zeichen erkannt",
+  "verdictNormal": "Keine Pneumonie-Zeichen",
+  "verdictPneumoniaDescription": "Verschattung vereinbar mit einer Pneumonie",
+  "verdictNormalDescription": "Keine mit einer Pneumonie vereinbare Verschattung",
+  "interpretationFinding": "Befund",
+  "interpretationNextStep": "Empfohlener nächster Schritt",
+  "interpretationLimitations": "Einschränkungen",
+  "positiveFinding": "Das Modell hat einen Bereich erhöhter Verschattung gefunden, der einem pneumonischen Infiltrat ähnelt.",
+  "positiveNextStep": "Mit Symptomen, Auskultation und Entzündungsparametern abgleichen und den Befund radiologisch bestätigen lassen.",
+  "positiveLimitations": "Auch andere Zustände (Ödem, Atelektase, Tumoren) können eine ähnliche Verschattung erzeugen; das Modell unterscheidet sie nicht.",
+  "negativeFinding": "Auf dieser Aufnahme wurde keine für eine Pneumonie typische Verschattung erkannt.",
+  "negativeNextStep": "Ein negatives Screening schließt eine Infektion nicht aus. Bei anhaltenden Symptomen können eine Verlaufsaufnahme oder ein CT sinnvoll sein.",
+  "negativeLimitations": "Frühe oder diskrete Infiltrate sowie Befunde hinter Herz oder Zwerchfell können übersehen werden.",
+  "confidenceLabel": "Konfidenz des Modells",
+  "confidenceHigh": "Das Modell ist sich dieses Ergebnisses sehr sicher. Es sollte dennoch radiologisch bestätigt werden.",
+  "confidenceMedium": "Mittlere bis hohe Konfidenz. Prüfen Sie den hervorgehobenen Bereich sorgfältig.",
+  "confidenceLow": "Geringe Konfidenz. Bildqualität oder Projektion könnten das Modell einschränken; eine Wiederholungsaufnahme kann helfen.",
+  "detailsStudy": "Aufnahme",
+  "detailsAnalysed": "Analysiert",
+  "detailsModel": "Modell",
+  "detailsInferenceTime": "Inferenzzeit",
+  "detailsHeatmap": "Heatmap",
+  "detailsSource": "Quelle",
+  "detailsAvailable": "Verfügbar",
+  "detailsNotAvailable": "Nicht verfügbar",
+  "sheetTitle": "Thoraxaufnahme hinzufügen",
+  "sheetSubtitle": "Verwenden Sie für das zuverlässigste Ergebnis eine PA- oder AP-Projektion. DICOM wird genau so gelesen, wie das Modell trainiert wurde.",
+  "sheetDicomTitle": "DICOM-Datei öffnen",
+  "sheetDicomSubtitle": "Die originale .dcm-Aufnahme, verlustfrei gelesen",
+  "sheetGalleryTitle": "Aus der Galerie wählen",
+  "sheetGallerySubtitle": "PNG- oder JPEG-Export der Aufnahme",
+  "sheetCameraTitle": "Mit der Kamera aufnehmen",
+  "sheetCameraSubtitle": "Einen Film oder einen Monitor abfotografieren",
+  "sheetOpenError": "Die Bildquelle konnte nicht geöffnet werden: {error}",
+  "@sheetOpenError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewerUnavailable": "Bild auf diesem Gerät nicht verfügbar",
+  "errorEmptyFile": "Die ausgewählte Datei ist leer. Wählen Sie die Aufnahme erneut.",
+  "errorUnsupported": "{message} Öffnen Sie die originale DICOM-Datei oder einen PNG-/JPEG-Export der Aufnahme.",
+  "@errorUnsupported": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCorrupt": "{message} Die Datei scheint beschädigt zu sein — kopieren Sie sie erneut von der Quelle.",
+  "@errorCorrupt": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorModelUnavailable": "{message} Versuchen Sie es erneut; falls der Fehler bestehen bleibt, muss die App neu installiert werden, damit das mitgelieferte Modell wiederhergestellt wird.",
+  "@errorModelUnavailable": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "errorAnalysisFailed": "Analyse fehlgeschlagen: {error}",
+  "@errorAnalysisFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reportTitle": "Bericht zum Thorax-Röntgen-Screening",
+  "reportSubtitle": "Auf diesem Gerät von PulmoAI erstellt. Keine Diagnose.",
+  "reportStudy": "Aufnahme",
+  "reportAnalysed": "Analysiert",
+  "reportVerdict": "Votum",
+  "reportProbability": "Wahrscheinlichkeit einer Verschattung",
+  "reportThreshold": "Entscheidungsschwelle",
+  "reportModel": "Modell",
+  "reportInferenceTime": "Inferenzzeit",
+  "reportHeatmapCaption": "Class Activation Map — der Bereich, auf den die Entscheidung reagiert hat, keine Krankheitsgrenze",
+  "reportNoImages": "Die Bilder dieser Aufnahme sind auf dem Gerät nicht mehr verfügbar.",
+  "reportDisclaimer": "Dieser Bericht ist die Ausgabe eines Forschungsprototyps und keine Diagnose. Er muss vor jeder klinischen Maßnahme von einer qualifizierten Radiologin oder einem qualifizierten Radiologen bestätigt werden.",
+  "reportGeneratedBy": "PulmoAI · PulmoNet-7M · Inferenz auf dem Gerät, offline",
+  "timeJustNow": "Gerade eben",
+  "timeMinutesAgo": "vor {count} Min.",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "vor {count} Std.",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "vor {count} Tagen",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aboutVersion": "Version {version}",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "actionClose": "Schließen"
+}
