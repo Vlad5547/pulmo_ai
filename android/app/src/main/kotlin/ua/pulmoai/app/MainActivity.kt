@@ -1,4 +1,4 @@
-package com.example.pulmo_ai
+package ua.pulmoai.app
 
 import io.flutter.embedding.android.FlutterActivity
 

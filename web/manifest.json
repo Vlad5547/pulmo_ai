@@ -1,11 +1,11 @@
 {
-    "name": "pulmo_ai",
-    "short_name": "pulmo_ai",
+    "name": "PulmoAI",
+    "short_name": "PulmoAI",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0E7C86",
+    "theme_color": "#0E7C86",
+    "description": "On-device pneumonia screening on chest radiographs with PulmoNet-7M.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
