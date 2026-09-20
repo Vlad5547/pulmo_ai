@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'app/app.dart';
 import 'services/history_repository.dart';
 import 'services/image_source_service.dart';
 import 'services/onnx_analysis_service.dart';
+import 'services/sqlite_history_repository.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,10 +25,19 @@ void main() {
     debugPrint('PulmoAI: warm-up failed, retried on first analysis: $error');
   }));
 
+  // History lives in a SQLite database in the app's own directory: it never
+  // leaves the device, and it survives a restart.
+  final HistoryRepository history = SqliteHistoryRepository(
+    storageDirectory: getApplicationDocumentsDirectory,
+  );
+  unawaited(history.load().catchError((Object error) {
+    debugPrint('PulmoAI: history could not be opened: $error');
+  }));
+
   runApp(
     PulmoAiApp(
       analysisService: analysisService,
-      historyRepository: HistoryRepository(),
+      historyRepository: history,
       imageSourceService: ImageSourceService(),
     ),
   );
