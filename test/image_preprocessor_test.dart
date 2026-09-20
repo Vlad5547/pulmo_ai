@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:pulmo_ai/services/image_preprocessor.dart';
+import 'package:pulmo_ai/services/radiograph_decoder.dart';
 
 const mean = 0.4932;
 const std = 0.2458;
@@ -11,7 +12,7 @@ const size = 224;
 const preprocessor = ImagePreprocessor(imageSize: size, mean: mean, std: std);
 
 Uint8List encodedSolid(int value, {int width = 512, int height = 512}) {
-  final image = img.Image(width: width, height: height, numChannels: 3);
+  final image = img.Image(width: width, height: height);
   img.fill(image, color: img.ColorRgb8(value, value, value));
   return img.encodePng(image);
 }
@@ -36,7 +37,7 @@ void main() {
     test('converts colour to a single grayscale channel', () {
       // A pure red image: grayscale must collapse it to one luminance value,
       // far from the red channel value itself.
-      final image = img.Image(width: 256, height: 256, numChannels: 3);
+      final image = img.Image(width: 256, height: 256);
       img.fill(image, color: img.ColorRgb8(255, 0, 0));
       final plane = preprocessor.toGrayscaleUnitRange(img.encodePng(image));
 
@@ -77,7 +78,7 @@ void main() {
       // Half black, half white in a fine checkerboard: point sampling would
       // return 0 or 1, area averaging returns the mid grey the model was
       // trained on.
-      final image = img.Image(width: 448, height: 448, numChannels: 3);
+      final image = img.Image(width: 448, height: 448);
       for (var y = 0; y < image.height; y++) {
         for (var x = 0; x < image.width; x++) {
           final value = (x + y).isEven ? 255 : 0;
@@ -92,7 +93,7 @@ void main() {
     test('rejects data that is not an image', () {
       expect(
         () => preprocessor.toModelInput(Uint8List.fromList([1, 2, 3, 4])),
-        throwsA(isA<ImagePreprocessingException>()),
+        throwsA(isA<RadiographDecodeException>()),
       );
     });
   });

@@ -1,13 +1,16 @@
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
+import 'radiograph_decoder.dart';
 
-/// Turns a PNG/JPEG into exactly the tensor PulmoNet-7M was trained on.
+/// Turns a DICOM / PNG / JPEG into exactly the tensor PulmoNet-7M was trained
+/// on.
 ///
 /// The contract comes from the model card and mirrors the Python pipeline
 /// (`ai/src/data/preprocessing.py`), step for step:
 ///
-/// 1. decode and read a single grayscale channel;
+/// 1. decode and read a single grayscale channel ([RadiographDecoder]; for a
+///    DICOM this also applies the MONOCHROME1 inversion and divides by the
+///    maximum of the stored bit depth, exactly as `dicom_to_float_tensor`);
 /// 2. resize to 224x224 with an **antialiased bilinear (triangle) filter**;
 /// 3. scale to `[0, 1]` (divide by the channel maximum);
 /// 4. normalise with the dataset statistics `(x - mean) / std`;
@@ -35,32 +38,24 @@ class ImagePreprocessor {
 
   /// Decoded, resized grayscale plane in `[0, 1]` - the input to [normalise],
   /// exposed separately so tests can inspect it.
-  Float32List toGrayscaleUnitRange(Uint8List encoded) {
-    final img.Image? decoded;
-    try {
-      decoded = img.decodeImage(encoded);
-    } catch (error) {
-      throw ImagePreprocessingException(
-        'The file could not be decoded as an image ($error). '
-        'Supported formats: PNG, JPEG.',
-      );
-    }
-    if (decoded == null) {
-      throw const ImagePreprocessingException(
-        'The file could not be decoded as an image. '
-        'Supported formats: PNG, JPEG.',
-      );
-    }
+  ///
+  /// Accepts DICOM as well as PNG/JPEG: the routing lives in
+  /// [RadiographDecoder], so both formats share this resize and normalisation
+  /// and cannot drift apart.
+  Float32List toGrayscaleUnitRange(Uint8List encoded) =>
+      resizeDecoded(const RadiographDecoder().decode(encoded));
 
-    final plane = _readGrayscalePlane(decoded);
-    return _resizeTriangle(
-      plane,
-      decoded.width,
-      decoded.height,
-      imageSize,
-      imageSize,
-    );
-  }
+  /// Resizes an already-decoded plane to the model's square input.
+  ///
+  /// The inference path decodes the file once and reuses the result for the
+  /// preview and the heatmap geometry, so nothing is decoded twice.
+  Float32List resizeDecoded(DecodedRadiograph radiograph) => _resizeTriangle(
+        radiograph.plane,
+        radiograph.width,
+        radiograph.height,
+        imageSize,
+        imageSize,
+      );
 
   /// `(x - mean) / std`, in place.
   Float32List normalise(Float32List plane) {
@@ -80,41 +75,11 @@ class ImagePreprocessor {
   /// Width and height of the encoded image, before the resize. The activation
   /// map is rendered with this aspect ratio so it lines up with the radiograph.
   (int, int) sourceSize(Uint8List encoded) {
-    final decoded = img.decodeImage(encoded);
-    if (decoded == null) {
-      throw const ImagePreprocessingException(
-        'The file could not be decoded as an image.',
-      );
-    }
+    final decoded = const RadiographDecoder().decode(encoded);
     return (decoded.width, decoded.height);
   }
 
   // -- internals ----------------------------------------------------------
-
-  /// Full-resolution single channel in `[0, 1]`.
-  ///
-  /// Channel handling is explicit rather than delegated to
-  /// `luminanceNormalized`: on a single-channel image that getter still weights
-  /// three channels (g and b read as 0) and returns ~0.3 of the true value,
-  /// while `img.grayscale()` truncates the weighted sum and biases every pixel
-  /// by up to 1/255. A radiograph exported as 8-bit grayscale has to reach the
-  /// model unchanged.
-  Float32List _readGrayscalePlane(img.Image image) {
-    final maxValue = image.maxChannelValue.toDouble();
-    final single = image.numChannels == 1;
-    final plane = Float32List(image.width * image.height);
-    var index = 0;
-    for (var y = 0; y < image.height; y++) {
-      for (var x = 0; x < image.width; x++) {
-        final pixel = image.getPixel(x, y);
-        final value = single
-            ? pixel.r.toDouble()
-            : 0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b;
-        plane[index++] = (value / maxValue).clamp(0.0, 1.0);
-      }
-    }
-    return plane;
-  }
 
   /// Separable antialiased bilinear resize - the same filter as
   /// `torch.nn.functional.interpolate(..., mode='bilinear', antialias=True)`.
@@ -211,14 +176,4 @@ class _Kernel {
   final Int32List ends;
   final Int32List offsets;
   late final Float64List weights;
-}
-
-/// Raised when the picked file is not an image this app can read.
-class ImagePreprocessingException implements Exception {
-  const ImagePreprocessingException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }

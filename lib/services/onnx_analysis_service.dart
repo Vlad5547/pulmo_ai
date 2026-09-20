@@ -10,6 +10,7 @@ import '../models/xray_image.dart';
 import 'analysis_service.dart';
 import 'cam_service.dart';
 import 'image_preprocessor.dart';
+import 'radiograph_decoder.dart';
 
 /// Local, offline inference with the exported PulmoNet-7M model.
 ///
@@ -226,7 +227,6 @@ class OnnxAnalysisService implements AnalysisService {
             : PneumoniaVerdict.normal,
         confidence: probability,
         processingTime: stopwatch.elapsed,
-        boxes: const [],
         modelName: info.name,
         modelVersion: info.version,
         notes: 'On-device inference, decision threshold '
@@ -287,16 +287,19 @@ class _PreprocessRequest {
 }
 
 /// Top-level function so it can run in a background isolate.
+///
+/// Decodes once and reuses the plane for both the tensor and the geometry;
+/// decoding a 1024x1024 DICOM twice would double the cost of every analysis.
 _PreparedImage _preprocessInIsolate(_PreprocessRequest request) {
   final preprocessor = ImagePreprocessor(
     imageSize: request.imageSize,
     mean: request.mean,
     std: request.std,
   );
-  final size = preprocessor.sourceSize(request.bytes);
+  final decoded = const RadiographDecoder().decode(request.bytes);
   return _PreparedImage(
-    tensor: preprocessor.toModelInput(request.bytes),
-    sourceWidth: size.$1,
-    sourceHeight: size.$2,
+    tensor: preprocessor.normalise(preprocessor.resizeDecoded(decoded)),
+    sourceWidth: decoded.width,
+    sourceHeight: decoded.height,
   );
 }
