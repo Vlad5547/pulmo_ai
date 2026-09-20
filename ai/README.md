@@ -1002,16 +1002,25 @@ the test results are the same files.
 ### Architecture
 
 ```
-image_picker (gallery / camera)
-   ↓  XRayImage {name, path}
+file_picker (.dcm)  /  image_picker (gallery, camera)
+   ↓  XRayImage {name, path, displayPath, isDicom, header fields}
+RadiographDecoder            lib/services/radiograph_decoder.dart
+   routes by content, not by extension
+   ├─ DicomDecoder           lib/services/dicom/dicom_decoder.dart
+   │    tags → geometry, bit depth, photometric interpretation
+   │    pixels: uncompressed LE, or JPEG-baseline frame
+   │    → /(2^BitsStored − 1), MONOCHROME1 inverted
+   └─ image package          PNG / JPEG → grayscale plane
+   ↓  DecodedRadiograph {plane [0,1], width, height}
 ImagePreprocessor            lib/services/image_preprocessor.dart
-   decode PNG/JPEG → grayscale plane → triangle resize 224×224
-   → /255 → (x − 0.4932) / 0.2458 → Float32List [1,1,224,224]
+   triangle resize 224×224 → (x − 0.4932) / 0.2458
+   → Float32List [1,1,224,224]
    ↓  (runs in a background isolate via compute())
 OnnxAnalysisService          lib/services/onnx_analysis_service.dart
    flutter_onnxruntime session (created once in warmUp, reused)
    ↓  logit → sigmoid → probability → threshold 0.5
-AnalysisResult → Result screen → HistoryRepository
+AnalysisResult → Result screen ──→ SqliteHistoryRepository (local DB)
+                              └──→ ReportService (single-page PDF)
 ```
 
 | Piece | Location |
@@ -1019,10 +1028,16 @@ AnalysisResult → Result screen → HistoryRepository
 | Model | `assets/models/pulmonet7m_cam.onnx` (28.26 MB, fp32, opset 17; two outputs) |
 | Model card | `assets/models/model_card.json` — input contract, threshold, test metrics, CAM weights |
 | Card parser | `lib/models/model_info.dart` |
+| DICOM reader | `lib/services/dicom/dicom_decoder.dart` |
+| Format routing | `lib/services/radiograph_decoder.dart` |
 | Preprocessing | `lib/services/image_preprocessor.dart` |
 | Inference | `lib/services/onnx_analysis_service.dart` |
 | Activation map | `lib/services/cam_service.dart` |
-| Injection | `lib/main.dart` (`OnnxAnalysisService()`) |
+| History (SQLite) | `lib/services/sqlite_history_repository.dart` |
+| PDF report | `lib/services/report_service.dart` |
+| Localisation (uk/en/de) | `lib/l10n/*.arb` → `lib/l10n/generated/` |
+| Injection | `lib/main.dart` (`OnnxAnalysisService`, `SqliteHistoryRepository`) |
+| Launcher icon | drawn by `tool/make_app_icon.py`, applied by `flutter_launcher_icons` |
 
 `MockAnalysisService` stays in the project and implements the same
 `AnalysisService` contract — it is what the widget tests use and what you inject
@@ -1170,7 +1185,13 @@ no notion of an object.
 ```powershell
 flutter run                                  # debug, on a connected device
 flutter build apk --release --split-per-abi  # release APKs
-flutter test                                 # 22 unit/widget tests
+flutter analyze                              # strict lint set, must be clean
+flutter test                                 # 106 unit/widget tests
+
+# DICOM parity against the dataset (skips itself when it is not mounted),
+# then the effect of the decoder difference on the probability
+flutter test test/dicom_dataset_parity_test.dart
+& $py ai\src\export\check_dicom_parity.py
 
 # on-device parity test: push the fixtures once, then run
 adb shell mkdir -p /data/local/tmp/pulmoai_fixtures
@@ -1189,13 +1210,40 @@ The test body executes **on the device**, so it cannot see the host repository.
 `flutter test` reinstalls the app on every run, which wipes app data; the shell
 tmp directory survives that and is readable by the app.
 
-Release APK sizes: **arm64-v8a 60.7 MB**, armeabi-v7a 53.3 MB, x86_64 65.7 MB —
+Release APK sizes: **arm64-v8a 61.8 MB**, armeabi-v7a 54.5 MB, x86_64 66.8 MB —
 26.3 MB of that is the compressed model and ~19 MB the ONNX Runtime native
-library.
+library. The DICOM reader, the SQLite history, the PDF report and the three
+locales together add ~1.3 MB.
 
 Android: `flutter_onnxruntime` requires **minSdk 21**, which is what the Flutter
 template already sets — no Gradle, NDK or ABI change was needed. iOS is not
 configured separately; the same code path is what the runtime supports there.
+
+### What the app-side tests cover
+
+`flutter test` runs 106 tests. The ones that exist because something could
+silently go wrong, rather than to raise a coverage number:
+
+| Suite | What it protects |
+|---|---|
+| `preprocessing_parity_test` | the Dart resize still reproduces `F.interpolate(antialias=True)` (5.2e-05) |
+| `dicom_dataset_parity_test` | reading the original `.dcm` produces the Python tensor (skips without the dataset) |
+| `dicom_decoder_test` | MONOCHROME1, 16-bit, implicit VR, truncated, colour, unsupported syntax — none of which occur in RSNA, all of which occur in the wild |
+| `radiograph_decoder_test` | a PDF, a text file, random bytes, half a PNG: every one ends in a typed error, never a crash and never a silent analysis of garbage |
+| `image_source_service_test` | a DICOM keeps its own path for the model and gains a PNG preview for the UI |
+| `history_repository_test` | what survives a restart, and that deleting a record deletes its files |
+| `report_service_test` | the PDF is produced even when the images are gone |
+| `l10n_completeness_test` | no key missing, stale, empty or left in English in uk/de |
+| `widget_test` | the screens, the filters, swipe-to-delete, and every locale rendering |
+| `cam_service_test`, `cam_rendering_test` | the activation map matches the Python implementation |
+
+One caveat about running them on Windows: `flutter test` intermittently reports
+an entire widget-test file as "did not complete" with no error message. Running
+it with `-v` shows `flutter_tester process exited with code=-1073741819`, an
+access violation inside the test engine itself (Flutter 3.47.2). It reproduces
+at roughly 1 run in 10 with a minimal `MaterialApp` probe that contains none of
+this project's code, and at any `--concurrency`, so it is an engine defect, not
+a test or application defect. Unit tests never hit it. Rerun the suite.
 
 ### Measured on a real device
 
@@ -1221,22 +1269,66 @@ provider:
 
 No verdict differs from the desktop run.
 
+### Reading DICOM on the device
+
+The app opens the original `.dcm` file, not only a PNG export. There is no
+usable pure-Dart DICOM package for this dataset (the ones on pub.dev handle
+uncompressed and RLE pixel data, and every RSNA file is JPEG-baseline
+compressed), so `lib/services/dicom/dicom_decoder.dart` reads what the model
+needs and refuses everything else rather than guessing:
+
+| Supported | Refused, with a message |
+|---|---|
+| Explicit VR little endian, uncompressed | Any other transfer syntax (JPEG 2000, JPEG lossless, RLE) |
+| Implicit VR little endian, uncompressed | Multi-sample (colour) pixel data |
+| JPEG baseline (`1.2.840.10008.1.2.4.50`) | Compressed pixel data deeper than 8 bits |
+| 8- and 16-bit, signed or unsigned | Truncated or headerless files |
+| MONOCHROME1 (inverted) and MONOCHROME2 | |
+
+The two rules that decide whether the tensor is right are taken from
+`dicom_to_float_tensor` and implemented identically: divide by
+`(1 << BitsStored) − 1` rather than by 255 or 65535, using the observed maximum
+instead when the header understates it; and invert MONOCHROME1.
+
+**Measured parity.** `test/dicom_dataset_parity_test.dart` reads the six fixture
+studies as DICOM and compares the resulting tensors with the reference tensors
+from `ai/src/data/preprocessing.py` (the test skips itself when the dataset is
+not mounted). `ai/src/export/check_dicom_parity.py` then measures what the
+remaining difference does to the model output:
+
+| | PNG path | DICOM path |
+|---|---|---|
+| worst per-element &#124;Δ&#124; in the tensor | 5.2e-05 | 4.9e-03 |
+| worst &#124;Δp&#124; on the probability | ~1e-06 | **1.3e-03** |
+| verdicts changed | 0 | **0** |
+
+The gap is **not** in the DICOM parsing: it is the baseline-JPEG decoder. The
+`image` package and libjpeg (which pydicom uses) round the IDCT differently and
+disagree by at most **one LSB on ~4 % of pixels** — measured directly by
+comparing the Dart DICOM plane against the Dart PNG plane of the same study, so
+the resize is identical on both sides. One LSB is the precision the stored 8-bit
+image itself has, so this is the floor for any second decoder, not a defect to
+fix.
+
+A DICOM is also rendered to an 8-bit PNG when it is picked, because no Flutter
+widget can draw a DICOM. That PNG is only ever shown and stored — the model
+reads the DICOM.
+
 ### Limits of this version
 
-- **PNG/JPEG only.** DICOM is not read on the device: the dataset files are
-  JPEG-Baseline compressed inside DICOM, and the pure-Dart parsers on pub.dev
-  handle uncompressed/RLE only. A photograph of a film or a monitor also
-  introduces glare and geometry the model never saw in training.
-- **Bounding boxes, DICOM picking, INT8 quantisation and any backend are
-  deliberately out of scope** for this version. The CAM is in (see above); a
-  detector is not.
+- **A photograph of a film or a monitor** introduces glare and geometry the
+  model never saw in training; a DICOM or a clean export is always better.
+- **Bounding boxes, INT8 quantisation and any backend are deliberately out of
+  scope.** The CAM is in (see above); a detector is not. PulmoNet-7M is a
+  classifier, so the app has no bounding-box overlay at all — the dead
+  `DetectionBox` scaffolding from the mock era was removed.
 - Inference runs on the CPU execution provider. NNAPI/XNNPACK are available in
   the plugin and can be enabled later, but they change the arithmetic slightly
   and would need their own parity check.
 - The Windows target cannot be built on this machine (no Visual Studio
   toolchain), so the parity test runs on Android.
-- The manual gallery flow (pick → analyse → result → history) has to be walked
-  through by hand; only the programmatic pipeline is automated.
+- The manual pick → analyse → result → history flow has to be walked through by
+  hand on a device; the screens themselves are covered by widget tests.
 
 ---
 ## 15. Known issues and notes

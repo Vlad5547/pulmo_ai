@@ -71,11 +71,26 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --im
 # regenerate the Ukrainian thesis report (embeds the figures above)
 & $py docs\make_report.py
 
+# thesis explanatory note, one file (Ukrainian, DSTU 3008-2015)
+& $py docs\make_thesis.py         # -> docs\PulmoAI_poyasnyuvalna_zapyska.docx
+# (make_front_matter.py / make_chapter1.py are its modules; running either one
+#  alone emits only its own part, for drafting)
+
 # Flutter app (runs PulmoNet-7M on-device via flutter_onnxruntime)
 flutter run
-flutter test                                  # 34 unit/widget tests
+flutter analyze                               # strict lint set, must stay clean
+flutter test                                  # 106 unit/widget tests
 flutter test integration_test -d <device>     # real ONNX parity test (needs a device)
 flutter build apk --release --split-per-abi
+flutter gen-l10n                              # after editing lib/l10n/*.arb
+
+# launcher icon: redraw the artwork, then write the per-platform icon sets
+& $py tool\make_app_icon.py
+dart run flutter_launcher_icons
+
+# DICOM parity: Dart reads the real .dcm, Python measures the effect on p
+flutter test test/dicom_dataset_parity_test.dart
+& $py ai\src\export\check_dicom_parity.py
 ```
 
 ## Keeping the documentation current
@@ -123,8 +138,58 @@ into a changelog.
   0 shared patients. `pos_weight = 3.1775`, computed on train only.
 - Hyperparameters used: AdamW, lr 3e-4, weight decay 1e-4, batch 32, 30 epochs
   (stopped at 18), early stopping patience 5, seed 42, num_workers 8.
-- Flutter UI (Home / Analyze / Result / History) is complete and runs on a mock
-  analysis service; swapping in the real model is one line in `lib/main.dart`.
+- Flutter UI (Home / Analyze / Result / History) is complete and runs the real
+  model; `MockAnalysisService` is kept for tests.
+- **The app reads DICOM.** `lib/services/dicom/dicom_decoder.dart` +
+  `lib/services/radiograph_decoder.dart` route by file content, not extension.
+  Supported: explicit/implicit VR little endian uncompressed, JPEG baseline
+  (what RSNA uses), 8/16-bit, MONOCHROME1 inverted; anything else is refused
+  with a typed error instead of being guessed at. The two scaling rules match
+  `dicom_to_float_tensor` exactly. Parity: tensor 4.9e-03, probability
+  **1.3e-03**, 0 verdicts changed — the gap is the baseline-JPEG decoder
+  (`image` vs libjpeg differ by 1 LSB on ~4 % of pixels), not the parser.
+  Verified by `test/dicom_dataset_parity_test.dart` (skips without the dataset)
+  and `ai/src/export/check_dicom_parity.py`.
+- **History is a local SQLite database**
+  (`lib/services/sqlite_history_repository.dart`): survives restarts, copies the
+  radiograph and the heatmap into the app directory, deletes them with the
+  record. The old in-memory repository with three fake demo records is gone;
+  `InMemoryHistoryRepository` remains for tests.
+- **PDF report** (`lib/services/report_service.dart` + `printing`): one page,
+  built on device from the stored record, shared through the platform sheet.
+- **Localisation uk / en / de** — `lib/l10n/*.arb` → `flutter gen-l10n` →
+  `lib/l10n/generated/`. Follows the device language; a picker in the home app
+  bar overrides it (`lib/app/locale_controller.dart`). Dates go through `intl`
+  with the active locale. `test/l10n_completeness_test.dart` fails the build on
+  a missing, stale, empty or untranslated key.
+- **App identity**: name **PulmoAI** everywhere the OS shows it (Android
+  label, iOS `CFBundleName`/`CFBundleDisplayName`, macOS `PRODUCT_NAME`, web
+  manifest and title, Windows `Runner.rc`, Linux window title). Bundle id is
+  `ua.pulmoai.app` on every platform — the scaffolded `com.example.*` is gone,
+  and the Kotlin package moved to `android/app/src/main/kotlin/ua/pulmoai/app/`.
+  Launcher icon is drawn by `tool/make_app_icon.py` (lungs in viewfinder
+  brackets, seed colour #0E7C86) into `assets/icon/`, and applied by
+  `flutter_launcher_icons` — including the Android adaptive foreground and the
+  Android 13+ monochrome variant. Changing the artwork means rerunning both.
+- `showAboutDialog` was replaced by a plain `AlertDialog`: it always appends a
+  "View licences" button and Flutter's own licence browser, which cannot be
+  removed, is untranslated and is noise in a clinical tool. Do not reintroduce
+  it. The Flutter scaffold's tutorial comments and `A new Flutter project`
+  strings are gone from `pubspec.yaml`, `web/` and the platform runners.
+- **Known flake, not ours**: `flutter test` occasionally reports a whole
+  widget-test file as "did not complete" with no error. `-v` shows
+  `flutter_tester process exited with code=-1073741819` — an access violation
+  inside the Windows test engine (Flutter 3.47.2, engine a804b26164).
+  Reproduced at ~1/10 with a minimal `MaterialApp` + `ListView` probe
+  containing none of this project's code, at any `--concurrency`. Unit tests
+  are unaffected. Just rerun; do not go looking for a bug in the widgets.
+- Lints: `analysis_options.yaml` adds ~30 rules on top of `flutter_lints`
+  (strict-casts/inference/raw-types, `unawaited_futures` and
+  `non_exhaustive_switch_statement` as **errors**). `flutter analyze` is clean
+  and must stay clean.
+- Dead code removed: `DetectionBox` / `DetectionOverlay` (PulmoNet-7M is a
+  classifier and always returned an empty list) and
+  `ImagePreprocessingException` (decoding moved to `RadiographDecoder`).
 - **ONNX export done and verified**: `ai/experiments/pulmonet7m-scratch/export/`
   (`pulmonet7m.onnx` 28.26 MB, fp32, opset 17, input `input` [1,1,224,224],
   output `logit` [1,1]; preprocessing stays outside the graph). Fidelity vs
@@ -141,10 +206,13 @@ into a changelog.
   filters do not match PyTorch (`Interpolation.average` shifted the
   probability by 2.1e-2), so `ImagePreprocessor` implements the antialiased
   triangle filter by hand. Measured agreement with Python: **7.9e-07** on the
-  probability. Never swap it out without re-running
-  `test/preprocessing_parity_test.dart`.
-- Release APK: arm64-v8a 60.7 MB (26.3 MB model + ~19 MB ORT). minSdk 21, no
-  Gradle change needed.
+  probability for PNG input, **1.3e-03** for DICOM (JPEG decoder, see above).
+  Never swap it out without re-running `test/preprocessing_parity_test.dart`
+  and `test/dicom_dataset_parity_test.dart`.
+- Release APK: arm64-v8a **61.8 MB** (26.3 MB model + ~19 MB ORT; DICOM +
+  SQLite + PDF + 3 locales add ~1.3 MB). minSdk 21, no Gradle change needed.
+  `file_picker` must stay **>= 13** — 8.x compiles against android-34 and fails
+  `checkReleaseAarMetadata` against the current lifecycle plugin.
 - **Verified on a real device** (Xiaomi 2306EPN60G, Android 15, arm64):
   warm-up 294 ms (session reused afterwards), 214 ms median per image, max |dp|
   vs desktop **7.889e-07** over the six fixtures, no verdict changed.
@@ -179,6 +247,28 @@ into a changelog.
   (13 sections, 18 tables, 8 embedded figures) — includes chapter 8
   "Результати навчання та оцінювання" with the full run analysis. Regenerate
   with `docs/make_report.py` after any new result.
+- **Explanatory note: front matter + Chapter 1 are written**, assembled into one
+  file `docs/PulmoAI_poyasnyuvalna_zapyska.docx` (43 pages) by
+  `docs/make_thesis.py`, which composes `docs/make_front_matter.py` and
+  `docs/make_chapter1.py` (figures in `docs/figures_ch1/`). Contents: title
+  page, завдання, РЕФЕРАТ/ABSTRACT (one page each), перелік умовних позначень
+  (28), ЗМІСТ with the full 4-chapter plan (chapter 4 now covers DICOM,
+  history, the PDF report and localisation), ВСТУП, РОЗДІЛ 1 (7 subsections +
+  висновки, 4 figures, 6 tables, 12 formulas), СПИСОК ВИКОРИСТАНИХ ДЖЕРЕЛ (48).
+  Formatting verified against `docs/Методичні_Вказівки.docx` (DSTU 3008-2015):
+  TNR 14, spacing 1.5, indent 15 mm, margins 25/15/20/20 mm, page number top
+  right 12 pt (not on the title page), chapter heading centred in capitals on a
+  new page, «Рис. 1.N», «Таблиця 1.N», formulas numbered within the chapter and
+  separated by a blank line. Placeholders `____` remain for name, group,
+  supervisor, order number, dates, page/figure counts and ЗМІСТ page numbers.
+  Single source of truth for topic / object / subject / goal / novelty /
+  practical value: the constants at the top of `make_front_matter.py` —
+  Chapter 1 §1.7 repeats the same wording, keep them in sync.
+  Formulas are plain Times New Roman text, not Microsoft Equation objects.
+  Reference material kept in `docs/`: `Приклад1.docx`, `Приклад2.docx`
+  (structure models) and `Дисертація_на_схожу_тему.docx` (style only).
+  Chapters 2-4 are still to be written: add their compose() calls in
+  `make_thesis.py` before `build_references`.
 
 ## Conventions
 
