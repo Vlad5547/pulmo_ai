@@ -8,10 +8,13 @@
 
 #include <file_selector_windows/file_selector_windows.h>
 #include <flutter_onnxruntime/flutter_onnxruntime_plugin.h>
+#include <printing/printing_plugin.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   FileSelectorWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FileSelectorWindows"));
   FlutterOnnxruntimePluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterOnnxruntimePlugin"));
+  PrintingPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("PrintingPlugin"));
 }
