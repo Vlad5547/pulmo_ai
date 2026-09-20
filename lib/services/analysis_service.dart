@@ -1,3 +1,7 @@
+import 'package:pulmo_ai/services/mock_analysis_service.dart' show MockAnalysisService;
+
+import 'package:pulmo_ai/services/onnx_analysis_service.dart' show OnnxAnalysisService;
+
 import '../models/analysis_result.dart';
 import '../models/xray_image.dart';
 

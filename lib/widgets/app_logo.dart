@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import '../l10n/generated/app_localizations.dart';
 
 /// PulmoAI wordmark: a lung glyph in a soft container plus the product name.
 class AppLogo extends StatelessWidget {
@@ -57,7 +58,7 @@ class AppLogo extends StatelessWidget {
               ),
             ),
             Text(
-              'Chest X-ray screening',
+              AppL10n.of(context).appTagline,
               style: context.texts.labelSmall?.copyWith(
                 color: colors.onSurfaceVariant,
                 letterSpacing: 0.4,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 import 'history/history_screen.dart';
 import 'home/home_screen.dart';
 
@@ -15,23 +17,24 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int _index = 0;
 
-  static const _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.home_outlined),
-      selectedIcon: Icon(Icons.home_rounded),
-      label: 'Home',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.history_outlined),
-      selectedIcon: Icon(Icons.history_rounded),
-      label: 'History',
-    ),
-  ];
+  List<NavigationDestination> _destinations(AppL10n l10n) => [
+        NavigationDestination(
+          icon: const Icon(Icons.home_outlined),
+          selectedIcon: const Icon(Icons.home_rounded),
+          label: l10n.navHome,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.history_outlined),
+          selectedIcon: const Icon(Icons.history_rounded),
+          label: l10n.navHistory,
+        ),
+      ];
 
   void _select(int index) => setState(() => _index = index);
 
   @override
   Widget build(BuildContext context) {
+    final destinations = _destinations(AppL10n.of(context));
     final pages = [
       HomeScreen(onOpenHistory: () => _select(1)),
       const HistoryScreen(),
@@ -48,7 +51,7 @@ class _RootShellState extends State<RootShell> {
               onDestinationSelected: _select,
               labelType: NavigationRailLabelType.all,
               destinations: [
-                for (final d in _destinations)
+                for (final d in destinations)
                   NavigationRailDestination(
                     icon: d.icon,
                     selectedIcon: d.selectedIcon,
@@ -68,7 +71,7 @@ class _RootShellState extends State<RootShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _select,
-        destinations: _destinations,
+        destinations: destinations,
       ),
     );
   }

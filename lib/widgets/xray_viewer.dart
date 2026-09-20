@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import '../l10n/generated/app_localizations.dart';
 
 /// Standard frame for a chest X-ray: dark backdrop, fixed aspect ratio,
 /// rounded corners and optional overlays (detections, loading, badges).
@@ -75,7 +76,7 @@ class _ScanPlaceholder extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Image not available on this device',
+            AppL10n.of(context).viewerUnavailable,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.55),
             ),

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/generated/app_localizations.dart';
+
 enum HistoryFilter {
-  all('All'),
-  findings('Findings'),
-  clear('Clear');
+  all,
+  findings,
+  clear;
 
-  const HistoryFilter(this.label);
-
-  final String label;
+  String label(AppL10n l10n) => switch (this) {
+        HistoryFilter.all => l10n.filterAll,
+        HistoryFilter.findings => l10n.filterFindings,
+        HistoryFilter.clear => l10n.filterClear,
+      };
 }
 
 /// Segmented filter over the stored analyses, with a count per bucket.
@@ -35,7 +39,8 @@ class HistoryFilterBar extends StatelessWidget {
               child: ChoiceChip(
                 selected: filter == selected,
                 onSelected: (_) => onChanged(filter),
-                label: Text('${filter.label} · ${counts[filter] ?? 0}'),
+                label: Text('${filter.label(AppL10n.of(context))} · '
+                    '${counts[filter] ?? 0}'),
                 showCheckmark: false,
               ),
             ),

@@ -2,51 +2,29 @@
 import 'package:flutter/foundation.dart';
 
 /// High level outcome of a single chest X-ray analysis.
+///
+/// The wording lives in the localisations, not here: the same verdict has to
+/// read correctly in three languages, and a model layer has no business
+/// holding UI copy.
 enum PneumoniaVerdict {
-  pneumonia('Pneumonia detected', 'Opacity consistent with pneumonia'),
-  normal('No signs of pneumonia', 'No opacity consistent with pneumonia');
-
-  const PneumoniaVerdict(this.label, this.description);
-
-  final String label;
-  final String description;
+  pneumonia,
+  normal;
 
   bool get isPositive => this == PneumoniaVerdict.pneumonia;
 }
 
-/// A region of interest returned by a detection model.
+/// Result of one inference run: the probability the model assigned, the
+/// verdict that the decision threshold turns it into, and the optional class
+/// activation map.
 ///
-/// Coordinates are normalised (0..1) relative to the displayed image so the
-/// overlay stays correct on any screen size. The RSNA challenge produces
-/// exactly this shape of output, so a real model can fill this in unchanged.
-@immutable
-class DetectionBox {
-  const DetectionBox({
-    required this.left,
-    required this.top,
-    required this.width,
-    required this.height,
-    required this.score,
-    this.label = 'Opacity',
-  });
-
-  final double left;
-  final double top;
-  final double width;
-  final double height;
-  final double score;
-  final String label;
-}
-
-/// Result of one inference run. Produced today by [MockAnalysisService],
-/// later by a real TFLite / ONNX / remote model without touching the UI.
+/// PulmoNet-7M is a classifier, not a detector, so there are no bounding
+/// boxes — localisation is only ever suggested by [heatmapPng].
 @immutable
 class AnalysisResult {
   const AnalysisResult({
     required this.verdict,
     required this.confidence,
     required this.processingTime,
-    this.boxes = const <DetectionBox>[],
     this.modelName = 'PulmoAI-Mock',
     this.modelVersion = '0.1.0',
     this.notes,
@@ -59,9 +37,6 @@ class AnalysisResult {
   final double confidence;
 
   final Duration processingTime;
-
-  /// Regions of interest for the heatmap / bounding-box overlay.
-  final List<DetectionBox> boxes;
 
   final String modelName;
   final String modelVersion;

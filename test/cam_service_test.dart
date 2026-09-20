@@ -10,7 +10,7 @@ const grid = 7;
 const channels = 4;
 
 CamService serviceWith(List<double> weights) =>
-    CamService(weights: Float32List.fromList(weights), gridSize: grid);
+    CamService(weights: Float32List.fromList(weights));
 
 /// `[C, 7, 7]` flattened, channel `c` filled with `values[c]`.
 List<double> featuresOf(List<double> values) => [
@@ -76,7 +76,7 @@ void main() {
 
     test('keeps the aspect ratio of the source image', () {
       final wide = service.renderOverlayPng(map,
-          sourceWidth: 1024, sourceHeight: 512, maxSide: 448);
+          sourceWidth: 1024, sourceHeight: 512);
       final decoded = img.decodePng(wide)!;
       expect(decoded.width, 448);
       expect(decoded.height, 224);
@@ -86,7 +86,7 @@ void main() {
     test('square source gives a square overlay', () {
       final decoded = img.decodePng(
         service.renderOverlayPng(map,
-            sourceWidth: 1024, sourceHeight: 1024, maxSide: 448),
+            sourceWidth: 1024, sourceHeight: 1024),
       )!;
       expect(decoded.width, 448);
       expect(decoded.height, 448);

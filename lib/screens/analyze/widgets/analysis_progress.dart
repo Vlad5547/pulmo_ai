@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Loading state for the analyze screen: an indeterminate bar plus the
 /// pipeline stages ticking over, so a two second wait still feels informative.
@@ -14,13 +15,17 @@ class AnalysisProgress extends StatefulWidget {
 }
 
 class _AnalysisProgressState extends State<AnalysisProgress> {
-  static const _stages = [
-    'Preparing image',
-    'Normalising intensities',
-    'Running inference',
-    'Building the report',
-  ];
+  static List<String> _stages(AppL10n l10n) => [
+        l10n.progressPreparing,
+        l10n.progressNormalising,
+        l10n.progressInference,
+        l10n.progressReport,
+      ];
+
+  /// How long each label stays up. The stages are indicative: inference is one
+  /// opaque call into ONNX Runtime, so the UI cannot observe its real phases.
   static const _stageDuration = Duration(milliseconds: 550);
+  static const _stageCount = 4;
 
   int _current = 0;
   Timer? _timer;
@@ -29,7 +34,7 @@ class _AnalysisProgressState extends State<AnalysisProgress> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(_stageDuration, (timer) {
-      if (_current >= _stages.length - 1) {
+      if (_current >= _stageCount - 1) {
         timer.cancel();
         return;
       }
@@ -45,6 +50,8 @@ class _AnalysisProgressState extends State<AnalysisProgress> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final stages = _stages(l10n);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -63,7 +70,7 @@ class _AnalysisProgressState extends State<AnalysisProgress> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Analysing the study…',
+                  l10n.progressRunning,
                   style: context.texts.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -76,7 +83,7 @@ class _AnalysisProgressState extends State<AnalysisProgress> {
               child: const LinearProgressIndicator(minHeight: 6),
             ),
             const SizedBox(height: 18),
-            for (var i = 0; i < _stages.length; i++)
+            for (var i = 0; i < stages.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -94,7 +101,7 @@ class _AnalysisProgressState extends State<AnalysisProgress> {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      _stages[i],
+                      stages[i],
                       style: context.texts.bodyMedium?.copyWith(
                         color: i <= _current
                             ? context.colors.onSurface

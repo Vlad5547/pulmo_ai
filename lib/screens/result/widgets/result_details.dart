@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/formatters.dart';
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../models/analysis_record.dart';
 
 /// Key/value block with the technical metadata of the run.
@@ -12,19 +13,21 @@ class ResultDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
     final result = record.result;
     final rows = <(String, String)>[
-      ('Study', record.imageName),
-      ('Analysed', formatDateTime(record.createdAt)),
-      ('Model', '${result.modelName} v${result.modelVersion}'),
-      ('Inference time', formatDuration(result.processingTime)),
+      (l10n.detailsStudy, record.imageName),
       (
-        'Regions of interest',
-        result.boxes.isEmpty ? 'None' : '${result.boxes.length}',
+        l10n.detailsSource,
+        record.isDicom ? 'DICOM' : 'PNG / JPEG',
       ),
+      (l10n.detailsAnalysed, formatDateTime(record.createdAt, locale)),
+      (l10n.detailsModel, '${result.modelName} v${result.modelVersion}'),
+      (l10n.detailsInferenceTime, formatDuration(result.processingTime)),
       (
-        'Model heatmap',
-        result.hasHeatmap ? 'Available' : 'Not available',
+        l10n.detailsHeatmap,
+        result.hasHeatmap ? l10n.detailsAvailable : l10n.detailsNotAvailable,
       ),
     ];
 

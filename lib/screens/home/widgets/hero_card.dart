@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Primary call-to-action block on the home screen.
 class HeroCard extends StatelessWidget {
@@ -16,6 +17,7 @@ class HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = AppL10n.of(context);
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -44,7 +46,7 @@ class HeroCard extends StatelessWidget {
                 Icon(Icons.auto_awesome, size: 13, color: colors.onPrimary),
                 const SizedBox(width: 6),
                 Text(
-                  'AI-ASSISTED SCREENING',
+                  l10n.heroBadge,
                   style: context.texts.labelSmall?.copyWith(
                     color: colors.onPrimary,
                     fontWeight: FontWeight.w700,
@@ -56,7 +58,7 @@ class HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Detect signs of pneumonia\non a chest X-ray',
+            l10n.heroTitle,
             style: context.texts.headlineSmall?.copyWith(
               color: colors.onPrimary,
               fontWeight: FontWeight.w700,
@@ -66,9 +68,7 @@ class HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'PulmoAI analyses a chest radiograph and highlights lung regions '
-            'that look consistent with pneumonia, with a confidence score for '
-            'every study.',
+            l10n.heroSubtitle,
             style: context.texts.bodyMedium?.copyWith(
               color: colors.onPrimary.withValues(alpha: 0.9),
               height: 1.45,
@@ -78,7 +78,7 @@ class HeroCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: onAnalyze,
             icon: const Icon(Icons.biotech_outlined),
-            label: const Text('Analyze X-ray'),
+            label: Text(l10n.heroAnalyze),
             style: FilledButton.styleFrom(
               backgroundColor: colors.onPrimary,
               foregroundColor: colors.primary,
@@ -88,7 +88,7 @@ class HeroCard extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onPickFromGallery,
             icon: const Icon(Icons.photo_library_outlined),
-            label: const Text('Choose from gallery'),
+            label: Text(l10n.heroGallery),
             style: OutlinedButton.styleFrom(
               foregroundColor: colors.onPrimary,
               side: BorderSide(color: colors.onPrimary.withValues(alpha: 0.55)),

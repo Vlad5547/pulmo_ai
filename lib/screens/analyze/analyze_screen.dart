@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/service_locator.dart';
 import '../../app/theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../models/analysis_record.dart';
 import '../../models/xray_image.dart';
-import '../../services/image_preprocessor.dart';
 import '../../services/onnx_analysis_service.dart';
-import '../../widgets/info_note.dart';
+import '../../services/radiograph_decoder.dart';
 import '../../widgets/image_source_sheet.dart';
+import '../../widgets/info_note.dart';
 import '../../widgets/responsive_content.dart';
 import '../../widgets/scanning_overlay.dart';
 import '../../widgets/section_title.dart';
@@ -68,11 +69,15 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
       final record = AnalysisRecord(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         imageName: image.name,
-        imagePath: image.path,
+        imagePath: image.previewPath,
+        isDicom: image.isDicom,
         createdAt: DateTime.now(),
         result: result,
       );
-      services.historyRepository.add(record);
+      // The record is stored before navigating, so a result the user can see
+      // is also a result that survived the app being killed on the next screen.
+      await services.historyRepository.add(record);
+      if (!mounted) return;
 
       await Navigator.pushReplacementNamed(
         context,
@@ -85,36 +90,41 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
       // the user can simply press Analyze again.
       setState(() {
         _stage = _Stage.failed;
-        _error = _describe(error);
+        _error = _describe(error, AppL10n.of(context));
       });
     }
   }
 
   /// Turns backend exceptions into something worth showing on screen.
-  String _describe(Object error) {
+  String _describe(Object error, AppL10n l10n) {
     if (error is ModelUnavailableException) {
-      return '${error.message} You can try again; if it keeps failing, the '
-          'app has to be reinstalled so the bundled model is restored.';
+      return l10n.errorModelUnavailable(error.message);
     }
-    if (error is ImagePreprocessingException) {
-      return '${error.message} Pick a PNG or JPEG export of the study.';
+    if (error is RadiographDecodeException) {
+      return switch (error.error) {
+        RadiographDecodeError.empty => l10n.errorEmptyFile,
+        RadiographDecodeError.unsupportedFormat =>
+          l10n.errorUnsupported(error.message),
+        RadiographDecodeError.corrupt => l10n.errorCorrupt(error.message),
+      };
     }
-    return 'Analysis failed: $error';
+    return l10n.errorAnalysisFailed('$error');
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
     final image = _image;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Analyze X-ray'),
+        title: Text(l10n.analyzeTitle),
         actions: [
           if (image != null)
             TextButton.icon(
               onPressed: _isRunning ? null : _replaceImage,
               icon: const Icon(Icons.swap_horiz, size: 18),
-              label: const Text('Replace'),
+              label: Text(l10n.analyzeReplace),
             ),
           const SizedBox(width: 8),
         ],
@@ -124,14 +134,16 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SectionTitle('Selected study'),
+              SectionTitle(l10n.analyzeSelectedStudy),
               XRayViewer(
                 image: image?.provider,
                 overlay: _isRunning ? const ScanningOverlay() : null,
                 topLeftBadge: image == null
                     ? null
                     : ScanBadge(
-                        label: _isRunning ? 'Analysing' : 'Ready',
+                        label: _isRunning
+                            ? l10n.analyzeStatusAnalysing
+                            : l10n.analyzeStatusReady,
                         icon: _isRunning
                             ? Icons.blur_on
                             : Icons.check_circle_outline,
@@ -150,7 +162,7 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
                 FilledButton.icon(
                   onPressed: image == null ? null : _analyze,
                   icon: const Icon(Icons.biotech_outlined),
-                  label: const Text('Analyze'),
+                  label: Text(l10n.analyzeRun),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
@@ -161,7 +173,9 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
                         : Icons.swap_horiz,
                   ),
                   label: Text(
-                    image == null ? 'Select image' : 'Replace image',
+                    image == null
+                        ? l10n.analyzeSelectImage
+                        : l10n.analyzeReplaceImage,
                   ),
                 ),
               ],
@@ -169,19 +183,16 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
                 const SizedBox(height: 16),
                 InfoNote(
                   icon: Icons.error_outline,
-                  title: 'Analysis could not be completed',
+                  title: l10n.analyzeErrorTitle,
                   text: _error!,
                   color: context.clinical.finding,
                 ),
               ],
               const SizedBox(height: 20),
-              const InfoNote(
+              InfoNote(
                 icon: Icons.tips_and_updates_outlined,
-                title: 'For the most reliable result',
-                text:
-                    'Use a frontal (PA or AP) chest radiograph, keep the whole '
-                    'thorax in frame and avoid glare or heavy cropping. '
-                    'Lateral views are not supported.',
+                title: l10n.analyzeTipsTitle,
+                text: l10n.analyzeTipsText,
               ),
             ],
           ),
@@ -198,6 +209,7 @@ class _EmptyScanPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -209,7 +221,7 @@ class _EmptyScanPlaceholder extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No image selected',
+            l10n.analyzeNoImageTitle,
             style: context.texts.titleSmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.85),
               fontWeight: FontWeight.w600,
@@ -217,13 +229,16 @@ class _EmptyScanPlaceholder extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Pick a chest X-ray to continue',
+            l10n.analyzeNoImageText,
             style: context.texts.bodySmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.55),
             ),
           ),
           const SizedBox(height: 16),
-          TextButton(onPressed: onPick, child: const Text('Browse images')),
+          TextButton(
+            onPressed: onPick,
+            child: Text(l10n.analyzeBrowse),
+          ),
         ],
       ),
     );

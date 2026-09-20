@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
 import '../core/formatters.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../l10n/verdict_l10n.dart';
 import '../models/analysis_record.dart';
 
 /// One row of the history list (also reused for "recent activity" on Home).
@@ -40,7 +42,7 @@ class AnalysisTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      record.result.verdict.label,
+                      record.result.verdict.label(AppL10n.of(context)),
                       style: context.texts.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: accent,
@@ -60,7 +62,12 @@ class AnalysisTile extends StatelessWidget {
                       children: [
                         _MetaChip(
                           icon: Icons.schedule,
-                          label: formatRelative(record.createdAt),
+                          label: formatRelative(
+                            record.createdAt,
+                            AppL10n.of(context),
+                            Localizations.localeOf(context)
+                                .toLanguageTag(),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         _MetaChip(
@@ -75,7 +82,7 @@ class AnalysisTile extends StatelessWidget {
               ),
               if (onDelete != null)
                 IconButton(
-                  tooltip: 'Delete',
+                  tooltip: AppL10n.of(context).actionDelete,
                   onPressed: onDelete,
                   icon: Icon(
                     Icons.delete_outline,

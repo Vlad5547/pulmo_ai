@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import '../l10n/generated/app_localizations.dart';
 
 /// Animated confidence meter with a percentage read-out.
 class ConfidenceBar extends StatelessWidget {
@@ -8,13 +9,14 @@ class ConfidenceBar extends StatelessWidget {
     super.key,
     required this.value,
     required this.color,
-    this.label = 'Model confidence',
+    this.label,
   });
 
   /// 0..1
   final double value;
   final Color color;
-  final String label;
+  /// Defaults to the localised "Model confidence".
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +28,7 @@ class ConfidenceBar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                label,
+                label ?? AppL10n.of(context).confidenceLabel,
                 style: context.texts.bodyMedium?.copyWith(
                   color: context.colors.onSurfaceVariant,
                 ),

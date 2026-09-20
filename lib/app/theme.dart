@@ -173,7 +173,7 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      textTheme: base.textTheme.apply(fontFamily: null),
+      textTheme: base.textTheme.apply(),
     );
   }
 }

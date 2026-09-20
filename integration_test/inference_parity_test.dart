@@ -181,14 +181,14 @@ void main() {
         'desktop ${reference.toStringAsFixed(6)}  '
         'flutter ${result.confidence.toStringAsFixed(6)}  '
         'diff ${difference.toStringAsExponential(2)}  '
-        '${result.verdict.label}  ${watch.elapsedMilliseconds} ms  '
+        '${result.verdict.name}  ${watch.elapsedMilliseconds} ms  '
         'heatmap ${result.hasHeatmap ? "${heatmap!.lengthInBytes ~/ 1024} KB "
             "in ${service.lastCamDuration?.inMilliseconds} ms" : "none"}',
       );
 
       expect(result.confidence, inInclusiveRange(0.0, 1.0));
       expect(result.modelName, 'PulmoNet-7M');
-      expect(result.boxes, isEmpty);
+      expect(result.hasHeatmap, isTrue);
       expect(result.processingTime.inMilliseconds, greaterThan(0));
       expect(result.verdict, expectedVerdict,
           reason: 'the verdict must not flip relative to the desktop run');

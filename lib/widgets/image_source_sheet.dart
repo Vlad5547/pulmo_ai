@@ -2,15 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../app/service_locator.dart';
 import '../app/theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/xray_image.dart';
-
-enum _Source { gallery, camera }
+import '../services/image_source_service.dart';
+import '../services/radiograph_decoder.dart';
 
 /// Asks the user where the X-ray comes from and returns the picked image,
-/// or null if the flow was cancelled.
+/// or null if the flow was cancelled or the file could not be read.
+///
+/// Decoding happens here rather than at analysis time so an unreadable file is
+/// rejected while the user still has the picker in mind, with a message that
+/// says what was wrong with it.
 Future<XRayImage?> pickXRayImage(BuildContext context) async {
+  final l10n = AppL10n.of(context);
   final services = AppServices.of(context);
-  final source = await showModalBottomSheet<_Source>(
+  final messenger = ScaffoldMessenger.of(context);
+  final source = await showModalBottomSheet<XRaySource>(
     context: context,
     showDragHandle: true,
     builder: (context) => const _ImageSourceSheet(),
@@ -18,15 +25,24 @@ Future<XRayImage?> pickXRayImage(BuildContext context) async {
   if (source == null) return null;
 
   try {
-    return source == _Source.gallery
-        ? await services.imageSourceService.pickFromGallery()
-        : await services.imageSourceService.captureWithCamera();
+    return switch (source) {
+      XRaySource.gallery => await services.imageSourceService.pickFromGallery(),
+      XRaySource.camera =>
+        await services.imageSourceService.captureWithCamera(),
+      XRaySource.file => await services.imageSourceService.pickFile(),
+    };
+  } on RadiographDecodeException catch (error) {
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(error.message),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+    return null;
   } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open the image source: $error')),
-      );
-    }
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.sheetOpenError('$error'))),
+    );
     return null;
   }
 }
@@ -36,6 +52,7 @@ class _ImageSourceSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
     return SafeArea(
       top: false,
       child: Padding(
@@ -45,31 +62,38 @@ class _ImageSourceSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add chest X-ray',
+              l10n.sheetTitle,
               style: context.texts.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              'Use a PA or AP projection image for the most reliable result.',
+              l10n.sheetSubtitle,
               style: context.texts.bodySmall?.copyWith(
                 color: context.colors.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 16),
             _SourceTile(
+              icon: Icons.folder_open_outlined,
+              title: l10n.sheetDicomTitle,
+              subtitle: l10n.sheetDicomSubtitle,
+              onTap: () => Navigator.pop(context, XRaySource.file),
+            ),
+            const SizedBox(height: 10),
+            _SourceTile(
               icon: Icons.photo_library_outlined,
-              title: 'Choose from gallery',
-              subtitle: 'PNG or JPEG export of the study',
-              onTap: () => Navigator.pop(context, _Source.gallery),
+              title: l10n.sheetGalleryTitle,
+              subtitle: l10n.sheetGallerySubtitle,
+              onTap: () => Navigator.pop(context, XRaySource.gallery),
             ),
             const SizedBox(height: 10),
             _SourceTile(
               icon: Icons.photo_camera_outlined,
-              title: 'Capture with camera',
-              subtitle: 'Photograph a printed film or a monitor',
-              onTap: () => Navigator.pop(context, _Source.camera),
+              title: l10n.sheetCameraTitle,
+              subtitle: l10n.sheetCameraSubtitle,
+              onTap: () => Navigator.pop(context, XRaySource.camera),
             ),
           ],
         ),

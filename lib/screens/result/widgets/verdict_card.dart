@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
+import '../../../l10n/verdict_l10n.dart';
 import '../../../models/analysis_result.dart';
 import '../../../widgets/confidence_bar.dart';
 
@@ -13,6 +15,7 @@ class VerdictCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
     final clinical = context.clinical;
     final positive = result.isPositive;
     final accent = positive ? clinical.finding : clinical.clear;
@@ -55,7 +58,7 @@ class VerdictCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      result.verdict.label,
+                      result.verdict.label(l10n),
                       style: context.texts.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: onContainer,
@@ -64,7 +67,7 @@ class VerdictCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      result.verdict.description,
+                      result.verdict.description(l10n),
                       style: context.texts.bodySmall?.copyWith(
                         color: onContainer.withValues(alpha: 0.8),
                       ),
@@ -78,7 +81,7 @@ class VerdictCard extends StatelessWidget {
           ConfidenceBar(value: result.confidence, color: accent),
           const SizedBox(height: 14),
           Text(
-            _confidenceHint(result),
+            _confidenceHint(result, l10n),
             style: context.texts.bodySmall?.copyWith(
               color: onContainer.withValues(alpha: 0.85),
               height: 1.45,
@@ -89,17 +92,10 @@ class VerdictCard extends StatelessWidget {
     );
   }
 
-  String _confidenceHint(AnalysisResult result) {
+  String _confidenceHint(AnalysisResult result, AppL10n l10n) {
     final percent = result.confidencePercent;
-    if (percent >= 90) {
-      return 'The model is highly confident in this outcome. A radiologist '
-          'should still confirm it before any clinical decision.';
-    }
-    if (percent >= 75) {
-      return 'Moderate to high confidence. Consider reviewing the highlighted '
-          'region together with the clinical picture.';
-    }
-    return 'Low confidence. The image quality or projection may be limiting '
-        'the model — a repeat study is recommended.';
+    if (percent >= 90) return l10n.confidenceHigh;
+    if (percent >= 75) return l10n.confidenceMedium;
+    return l10n.confidenceLow;
   }
 }

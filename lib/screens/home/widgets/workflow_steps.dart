@@ -1,41 +1,42 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// "How it works" explainer shown on the home screen.
 class WorkflowSteps extends StatelessWidget {
   const WorkflowSteps({super.key});
 
-  static const _steps = <({IconData icon, String title, String description})>[
-    (
-      icon: Icons.upload_file_outlined,
-      title: 'Add the study',
-      description:
-          'Pick a chest X-ray from the gallery or capture it with the camera.',
-    ),
-    (
-      icon: Icons.memory_outlined,
-      title: 'Run the model',
-      description:
-          'The image is normalised and passed to the pneumonia detection '
-          'model.',
-    ),
-    (
-      icon: Icons.insights_outlined,
-      title: 'Review the result',
-      description:
-          'Get a verdict, a confidence score and the regions that drove it.',
-    ),
-  ];
+  static List<({IconData icon, String title, String description})> _steps(
+    AppL10n l10n,
+  ) =>
+      [
+        (
+          icon: Icons.upload_file_outlined,
+          title: l10n.stepAddTitle,
+          description: l10n.stepAddText,
+        ),
+        (
+          icon: Icons.memory_outlined,
+          title: l10n.stepRunTitle,
+          description: l10n.stepRunText,
+        ),
+        (
+          icon: Icons.insights_outlined,
+          title: l10n.stepReviewTitle,
+          description: l10n.stepReviewText,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
+    final steps = _steps(AppL10n.of(context));
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           children: [
-            for (var i = 0; i < _steps.length; i++) ...[
+            for (var i = 0; i < steps.length; i++) ...[
               if (i > 0) const Divider(),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -51,7 +52,7 @@ class WorkflowSteps extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        _steps[i].icon,
+                        steps[i].icon,
                         size: 19,
                         color: context.colors.primary,
                       ),
@@ -62,14 +63,14 @@ class WorkflowSteps extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${i + 1}. ${_steps[i].title}',
+                            '${i + 1}. ${steps[i].title}',
                             style: context.texts.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            _steps[i].description,
+                            steps[i].description,
                             style: context.texts.bodySmall?.copyWith(
                               color: context.colors.onSurfaceVariant,
                               height: 1.4,

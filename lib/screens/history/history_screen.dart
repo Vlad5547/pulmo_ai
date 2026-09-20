@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
 import '../../app/service_locator.dart';
+import '../../l10n/generated/app_localizations.dart';
 import '../../models/analysis_record.dart';
+import '../../services/history_repository.dart';
 import '../../widgets/analysis_tile.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/responsive_content.dart';
@@ -29,42 +33,63 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _confirmClear(BuildContext context) async {
+    final l10n = AppL10n.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear history?'),
-        content: const Text(
-          'All stored analyses will be removed from this device.',
-        ),
+        title: Text(l10n.historyClearQuestion),
+        content: Text(l10n.historyClearBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear'),
+            child: Text(l10n.actionClear),
           ),
         ],
       ),
     );
-    if (confirmed == true && context.mounted) {
-      AppServices.of(context).historyRepository.clear();
-    }
+    if (confirmed != true || !context.mounted) return;
+    await AppServices.of(context).historyRepository.clear();
+  }
+
+  /// Takes what it needs as arguments rather than looking anything up in a
+  /// `BuildContext`.
+  ///
+  /// `Dismissible.onDismissed` fires while the tile is being removed from the
+  /// tree, so its context is on its way to being defunct; resolving an
+  /// inherited widget from it is a race that usually works and sometimes
+  /// throws.
+  Future<void> _delete(
+    HistoryRepository history,
+    ScaffoldMessengerState messenger,
+    AppL10n l10n,
+    AnalysisRecord record,
+  ) async {
+    await history.remove(record.id);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(l10n.historyRemoved(record.imageName))),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
     final history = AppServices.of(context).historyRepository;
+    final messenger = ScaffoldMessenger.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History'),
+        title: Text(l10n.historyTitle),
         actions: [
           ListenableBuilder(
             listenable: history,
             builder: (context, _) => IconButton(
-              tooltip: 'Clear history',
+              tooltip: l10n.historyClearTooltip,
               onPressed: history.isEmpty ? null : () => _confirmClear(context),
               icon: const Icon(Icons.delete_sweep_outlined),
             ),
@@ -75,6 +100,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: ListenableBuilder(
         listenable: history,
         builder: (context, _) {
+          // "Not read from disk yet" is not the same as "nothing analysed
+          // yet": showing the empty state during the read would tell the user
+          // their history is gone.
+          if (!history.isLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final all = history.records;
           final visible = _apply(all);
 
@@ -103,21 +134,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ? Icons.folder_open_outlined
                             : Icons.filter_alt_off_outlined,
                         title: all.isEmpty
-                            ? 'No analyses yet'
-                            : 'Nothing in this filter',
+                            ? l10n.historyEmptyTitle
+                            : l10n.historyFilterEmptyTitle,
                         message: all.isEmpty
-                            ? 'Every X-ray you analyse is saved here with its '
-                                  'verdict, confidence and date.'
-                            : 'Try a different filter to see your other '
-                                  'studies.',
+                            ? l10n.historyEmptyText
+                            : l10n.historyFilterEmptyText,
                         action: all.isEmpty
                             ? FilledButton.icon(
-                                onPressed: () => Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.analyze,
+                                onPressed: () => unawaited(
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.analyze,
+                                  ),
                                 ),
                                 icon: const Icon(Icons.biotech_outlined),
-                                label: const Text('Analyze X-ray'),
+                                label: Text(l10n.analyzeTitle),
                               )
                             : null,
                       )
@@ -134,12 +165,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               20,
                               index == visible.length - 1 ? 24 : 10,
                             ),
-                            child: AnalysisTile(
-                              record: record,
-                              onTap: () => Navigator.pushNamed(
-                                context,
-                                AppRoutes.result,
-                                arguments: record,
+                            child: Dismissible(
+                              key: ValueKey(record.id),
+                              direction: DismissDirection.endToStart,
+                              background: const _DeleteBackground(),
+                              onDismissed: (_) => unawaited(
+                                _delete(history, messenger, l10n, record),
+                              ),
+                              child: AnalysisTile(
+                                record: record,
+                                onTap: () => unawaited(
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.result,
+                                    arguments: record,
+                                  ),
+                                ),
                               ),
                             ),
                           );
@@ -150,6 +191,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Red "delete" strip revealed when a history entry is swiped away.
+class _DeleteBackground extends StatelessWidget {
+  const _DeleteBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 22),
+      child: Icon(Icons.delete_outline, color: colors.onErrorContainer),
     );
   }
 }

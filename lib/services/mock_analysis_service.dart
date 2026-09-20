@@ -43,23 +43,7 @@ class MockAnalysisService implements AnalysisService {
           : PneumoniaVerdict.normal,
       confidence: confidence,
       processingTime: stopwatch.elapsed,
-      boxes: positive ? _mockBoxes(random, confidence) : const [],
-      notes: positive
-          ? 'Mock inference. Region of interest is illustrative only.'
-          : 'Mock inference. No region of interest was produced.',
+      notes: 'Mock inference, not a real model output.',
     );
-  }
-
-  List<DetectionBox> _mockBoxes(Random random, double confidence) {
-    final onLeftLung = random.nextBool();
-    return [
-      DetectionBox(
-        left: onLeftLung ? 0.16 + random.nextDouble() * 0.06 : 0.55,
-        top: 0.34 + random.nextDouble() * 0.10,
-        width: 0.24,
-        height: 0.26,
-        score: confidence,
-      ),
-    ];
   }
 }
