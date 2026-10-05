@@ -133,6 +133,7 @@ class _ResultScreenState extends State<ResultScreen> {
         ],
       ),
       body: SingleChildScrollView(
+   padding: scrollSafePadding(context),
         child: ResponsiveContent(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

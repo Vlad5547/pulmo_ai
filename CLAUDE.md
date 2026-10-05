@@ -79,7 +79,7 @@ cd D:\pulmo_ai\ai; ..\ai\.venv\Scripts\python.exe -m src.export.verify_onnx --im
 # Flutter app (runs PulmoNet-7M on-device via flutter_onnxruntime)
 flutter run
 flutter analyze                               # strict lint set, must stay clean
-flutter test                                  # 106 unit/widget tests
+flutter test                                  # 107 unit/widget tests
 flutter test integration_test -d <device>     # real ONNX parity test (needs a device)
 flutter build apk --release --split-per-abi
 flutter gen-l10n                              # after editing lib/l10n/*.arb
@@ -157,6 +157,11 @@ into a changelog.
   `InMemoryHistoryRepository` remains for tests.
 - **PDF report** (`lib/services/report_service.dart` + `printing`): one page,
   built on device from the stored record, shared through the platform sheet.
+  Text is set in bundled **Noto Sans** (`assets/fonts/`, OFL) — the `pdf`
+  package's Helvetica has no Cyrillic and rendered Ukrainian as boxes.
+- **Safe area**: Android 15 forces edge-to-edge; every page scroll view uses
+  `scrollSafePadding(context)` from `lib/widgets/responsive_content.dart`.
+  New screens with a `SingleChildScrollView` must do the same.
 - **Localisation uk / en / de** — `lib/l10n/*.arb` → `flutter gen-l10n` →
   `lib/l10n/generated/`. Follows the device language; a picker in the home app
   bar overrides it (`lib/app/locale_controller.dart`). Dates go through `intl`

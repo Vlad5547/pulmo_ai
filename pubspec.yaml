@@ -75,3 +75,7 @@ flutter:
   assets:
     - assets/models/pulmonet7m_cam.onnx
     - assets/models/model_card.json
+    # Noto Sans (SIL OFL, see assets/fonts/OFL.txt) for the PDF report: the
+    # pdf package's built-in fonts have no Cyrillic glyphs.
+    - assets/fonts/NotoSans-Regular.ttf
+    - assets/fonts/NotoSans-Bold.ttf

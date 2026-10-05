@@ -130,6 +130,7 @@ class _AnalyzeScreenState extends State<AnalyzeScreen> {
         ],
       ),
       body: SingleChildScrollView(
+   padding: scrollSafePadding(context),
         child: ResponsiveContent(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -50,8 +50,28 @@ class ReportLabels {
 /// nothing is uploaded, and no template is fetched. It is a summary a clinician
 /// can file or hand over, and it repeats the disclaimer, because a printed
 /// sheet outlives the screen that explained what the number means.
+///
+/// Text is set in Noto Sans, bundled under `assets/fonts/`. The `pdf`
+/// package's built-in Helvetica only covers Latin-1, so Ukrainian (and any
+/// other Cyrillic) labels came out as empty boxes; fetching a font at runtime
+/// is not an option for an offline app.
 class ReportService {
   const ReportService();
+
+  static const _regularFont = 'assets/fonts/NotoSans-Regular.ttf';
+  static const _boldFont = 'assets/fonts/NotoSans-Bold.ttf';
+
+  static Future<pw.ThemeData>? _theme;
+
+  /// Parsed once per process: the fonts are ~0.4 MB each.
+  static Future<pw.ThemeData> _loadTheme() => _theme ??= () async {
+        final regular = await rootBundle.load(_regularFont);
+        final bold = await rootBundle.load(_boldFont);
+        return pw.ThemeData.withFont(
+          base: pw.Font.ttf(regular),
+          bold: pw.Font.ttf(bold),
+        );
+      }();
 
   Future<Uint8List> build({
     required AnalysisRecord record,
@@ -60,7 +80,10 @@ class ReportService {
     required String formattedDuration,
     required double threshold,
   }) async {
-    final document = pw.Document(title: labels.title);
+    final document = pw.Document(
+      title: labels.title,
+      theme: await _loadTheme(),
+    );
     final result = record.result;
 
     final radiograph = _imageFrom(record.imagePath);

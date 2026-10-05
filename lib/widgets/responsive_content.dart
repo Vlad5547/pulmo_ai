@@ -25,3 +25,14 @@ class ResponsiveContent extends StatelessWidget {
     );
   }
 }
+
+/// Padding for a page's scroll view so its last item can scroll clear of the
+/// system navigation bar and of side cutouts in landscape.
+///
+/// Android 15 draws every app edge-to-edge, and `SingleChildScrollView` (unlike
+/// `ListView` with no explicit padding) ignores the insets. Under a `Scaffold`
+/// with a bottom navigation bar the bottom inset is already consumed by it and
+/// reads as zero here, so this is safe on every screen. The top is left to the
+/// app bar.
+EdgeInsets scrollSafePadding(BuildContext context) =>
+    MediaQuery.paddingOf(context).copyWith(top: 0);

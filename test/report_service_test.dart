@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,6 +12,8 @@ import 'package:pulmo_ai/services/report_service.dart';
 /// from the record alone, survive missing images, and always carry the
 /// disclaimer.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   const service = ReportService();
 
   late Directory temp;
@@ -70,6 +73,20 @@ void main() {
     expect(bytes.length, greaterThan(1000));
   });
 
+  test('Cyrillic text is set in the bundled font, not Helvetica', () async {
+    // Helvetica has no Cyrillic: a Ukrainian report rendered as empty boxes.
+    final bytes = await service.build(
+      record: _record(positive: true),
+      labels: _ukLabels,
+      formattedDate: '20 вер. 2026 р., 12:30',
+      formattedDuration: '0,21 с',
+      threshold: 0.5,
+    );
+    final raw = latin1.decode(bytes);
+    expect(raw, contains('NotoSans'));
+    expect(raw, isNot(contains('/Helvetica')));
+  });
+
   test('a positive and a negative record both render', () async {
     expect((await render(_record(positive: true))).length, greaterThan(1000));
     expect((await render(_record())).length, greaterThan(1000));
@@ -91,6 +108,23 @@ const _labels = ReportLabels(
   disclaimer: 'Not a diagnosis.',
   generatedBy: 'PulmoAI',
   noImages: 'The images are no longer available.',
+);
+
+const _ukLabels = ReportLabels(
+  title: 'Звіт скринінгу рентгенограми ОГК',
+  subtitle: 'Створено на цьому пристрої застосунком PulmoAI. Не є діагнозом.',
+  study: 'Дослідження',
+  analysed: 'Проаналізовано',
+  verdict: 'Висновок',
+  verdictText: 'Виявлено ознаки пневмонії',
+  probability: 'Ймовірність затемнення',
+  threshold: 'Поріг рішення',
+  model: 'Модель',
+  inferenceTime: 'Час аналізу',
+  heatmapCaption: 'Карта активації класу',
+  disclaimer: 'Не є діагнозом. Ґрунтовна перевірка лікарем обовʼязкова.',
+  generatedBy: 'PulmoAI · PulmoNet-7M',
+  noImages: 'Зображення більше недоступні.',
 );
 
 AnalysisRecord _record({

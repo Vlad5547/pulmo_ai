@@ -1215,13 +1215,23 @@ Release APK sizes: **arm64-v8a 61.8 MB**, armeabi-v7a 54.5 MB, x86_64 66.8 MB â€
 library. The DICOM reader, the SQLite history, the PDF report and the three
 locales together add ~1.3 MB.
 
+The PDF report embeds **Noto Sans** Regular + Bold (`assets/fonts/`, SIL OFL,
+~0.85 MB together): the `pdf` package's built-in Helvetica covers Latin-1 only,
+so a Ukrainian report came out as empty boxes. The fonts are loaded once per
+process by `ReportService`.
+
+Android 15 forces edge-to-edge. Every page scroll view takes
+`scrollSafePadding(context)` (`lib/widgets/responsive_content.dart`) so its last
+item clears the system navigation bar; under the bottom `NavigationBar` that
+inset is already consumed and reads as zero.
+
 Android: `flutter_onnxruntime` requires **minSdk 21**, which is what the Flutter
 template already sets â€” no Gradle, NDK or ABI change was needed. iOS is not
 configured separately; the same code path is what the runtime supports there.
 
 ### What the app-side tests cover
 
-`flutter test` runs 106 tests. The ones that exist because something could
+`flutter test` runs 107 tests. The ones that exist because something could
 silently go wrong, rather than to raise a coverage number:
 
 | Suite | What it protects |
@@ -1232,7 +1242,7 @@ silently go wrong, rather than to raise a coverage number:
 | `radiograph_decoder_test` | a PDF, a text file, random bytes, half a PNG: every one ends in a typed error, never a crash and never a silent analysis of garbage |
 | `image_source_service_test` | a DICOM keeps its own path for the model and gains a PNG preview for the UI |
 | `history_repository_test` | what survives a restart, and that deleting a record deletes its files |
-| `report_service_test` | the PDF is produced even when the images are gone |
+| `report_service_test` | the PDF is produced even when the images are gone, and Cyrillic is set in the bundled Noto Sans rather than Helvetica |
 | `l10n_completeness_test` | no key missing, stale, empty or left in English in uk/de |
 | `widget_test` | the screens, the filters, swipe-to-delete, and every locale rendering |
 | `cam_service_test`, `cam_rendering_test` | the activation map matches the Python implementation |

@@ -63,6 +63,7 @@ class HomeScreen extends StatelessWidget {
         builder: (context, _) {
           final records = history.records;
           return SingleChildScrollView(
+            padding: scrollSafePadding(context),
             child: ResponsiveContent(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -153,7 +153,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             : null,
                       )
                     : ListView.separated(
-                        padding: EdgeInsets.zero,
+                        padding: scrollSafePadding(context),
                         itemCount: visible.length,
                         separatorBuilder: (_, _) => const SizedBox.shrink(),
                         itemBuilder: (context, index) {
